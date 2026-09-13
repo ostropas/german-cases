@@ -121,8 +121,39 @@ table.decl td.fill .fix{display:block;font-size:12px;color:var(--ok);font-weight
 .score{font-size:14px;color:var(--muted)}
 .score b{color:var(--ink)}
 
+/* ---------- connectors ---------- */
+table.conn{border-collapse:separate;border-spacing:0;width:100%;min-width:720px;font-size:14px}
+table.conn th,table.conn td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
+table.conn tr>*:last-child{border-right:0}
+table.conn tbody tr:last-child td,table.conn tbody tr:last-child th{border-bottom:0}
+table.conn thead th{background:var(--surface-2);font-weight:600;font-size:13px;color:var(--gc,var(--ink))}
+table.conn thead th small{display:block;font-weight:400;color:var(--muted);font-size:11.5px;line-height:1.35;margin-top:2px;text-wrap:balance}
+table.conn th.grp{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);white-space:nowrap;width:130px}
+table.conn th.grp small{display:block;font-weight:400;font-size:11.5px;letter-spacing:0;text-transform:none;color:var(--muted)}
+table.conn td.none{color:var(--muted);text-align:center}
+.cw{font-family:"JetBrains Mono",ui-monospace,monospace;font-weight:700;color:var(--gc)}
+.cw-list .cw{display:inline-block;font-size:14px;background:var(--gt);padding:1px 7px;border-radius:6px;margin:2px 6px 2px 0;cursor:help}
+.ex{color:var(--muted);font-size:12.5px;line-height:1.45;margin-top:6px}
+.ex b{color:var(--ink);font-weight:600}
+.ex b.v{color:var(--gc)}
+.prompt.sent{font-size:23px}
+.prompt.sent .blank{min-width:4ch}
+.prompt.sent .blank.done{font-size:.8em}
+.trans{color:var(--muted);font-size:14px;margin-top:8px}
+.answers.list{grid-template-columns:1fr}
+.answers.list button,.answers.groups button{font-family:inherit;font-weight:500;font-size:17px;text-align:left;padding:12px 14px 12px 34px;line-height:1.35}
+.answers.list button .k,.answers.groups button .k{top:50%;transform:translateY(-50%);left:12px}
+.answers.groups{grid-template-columns:repeat(2,1fr)}
+.answers.groups button small{color:var(--muted);font-weight:400;font-size:14px}
+.answers.words button{font-size:17px}
+.msg .sent{display:block;margin-top:4px;color:var(--ink)}
+.msg .sent b.v{color:var(--gc)}
+
 @media (max-width:560px){
   .prompt{font-size:23px}
+  .prompt.sent{font-size:19px}
+  .answers.groups{grid-template-columns:1fr}
+  .answers.words button{font-size:14px}
   .answers{grid-template-columns:repeat(5,1fr);gap:6px}
   .answers button{font-size:17px;padding:12px 0 10px}
   h1{font-size:28px}
@@ -146,6 +177,8 @@ table.decl td.fill .fix{display:block;font-size:12px;color:var(--ok);font-weight
   <button role="tab" data-tab="cells">&#x422;&#x435;&#x441;&#x442; &#x43F;&#x43E; &#x442;&#x430;&#x431;&#x43B;&#x438;&#x446;&#x435;</button>
   <button role="tab" data-tab="phrases">&#x422;&#x435;&#x441;&#x442; &#x43D;&#x430; &#x444;&#x440;&#x430;&#x437;&#x430;&#x445;</button>
   <button role="tab" data-tab="fill">&#x417;&#x430;&#x43F;&#x43E;&#x43B;&#x43D;&#x438;&#x442;&#x44C; &#x442;&#x430;&#x431;&#x43B;&#x438;&#x446;&#x443;</button>
+  <button role="tab" data-tab="conn">Коннекторы</button>
+  <button role="tab" data-tab="connTest">Тест по коннекторам</button>
 </nav>
 
 <!-- ============ TABLE ============ -->
@@ -201,6 +234,33 @@ table.decl td.fill .fix{display:block;font-size:12px;color:var(--ok);font-weight
     <button class="btn small primary" id="checkFill">&#x41F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x438;&#x442;&#x44C;</button>
   </div>
   <div class="tscroll" id="fillTable"></div>
+</section>
+<!-- ============ CONNECTORS: REFERENCE ============ -->
+<section id="tab-conn" class="panel" hidden>
+  <div class="toolbar">
+    <span class="grow">Коннекторы связывают два предложения. <b>Строка</b> — что выражает связка (смысловая группа), <b>столбец</b> — её грамматический класс, от которого зависит порядок слов. Наведите курсор на слово, чтобы увидеть перевод.</span>
+  </div>
+  <div class="tscroll" id="connTable"></div>
+  <p class="hint">Главное правило: одно и то же значение можно выразить тремя способами, но <b>порядок слов разный</b>. После <b>подчинительного союза</b> (weil, obwohl, damit…) глагол уходит в конец придаточного. После <b>сочинительного союза</b> (denn, aber, und…) порядок слов обычный: союз стоит на «нулевой» позиции. <b>Наречие-коннектор</b> (deshalb, trotzdem, danach…) само занимает первую позицию, поэтому глагол идёт сразу за ним, а подлежащее — после глагола.</p>
+  <div class="rules">
+    <div class="rule" style="--gc:var(--m);--gt:var(--m-tint)"><h3>Subjunktion · подчинительный союз</h3>Глагол в конце: <span class="mono">Ich bleibe zu Hause, weil ich krank <b>bin</b>.</span> Сюда же: dass, obwohl, damit, wenn, als, bevor, nachdem, sodass, indem.</div>
+    <div class="rule" style="--gc:var(--n);--gt:var(--n-tint)"><h3>Konjunktion · сочинительный союз</h3>Позиция 0, порядок не меняется: <span class="mono">Ich bleibe zu Hause, denn ich <b>bin</b> krank.</span> Всего пять основных: und, oder, aber, denn, sondern.</div>
+    <div class="rule" style="--gc:var(--pl);--gt:var(--pl-tint)"><h3>Konjunktionaladverb · наречие</h3>Занимает первую позицию, глагол сразу за ним: <span class="mono">Ich bin krank. Deshalb <b>bleibe</b> ich zu Hause.</span> Сюда же: trotzdem, danach, außerdem, sonst, also.</div>
+  </div>
+</section>
+
+<!-- ============ CONNECTORS: QUIZ ============ -->
+<section id="tab-connTest" class="panel" hidden>
+  <div class="toolbar">
+    <div class="stats" id="statsConn"></div>
+    <span class="grow"></span>
+    <button class="btn small" id="resetConn">Сбросить статистику</button>
+  </div>
+  <div class="opts" id="optsConn"></div>
+  <div class="q" id="qConn"></div>
+  <div class="answers" id="ansConn"></div>
+  <div class="feedback" id="fbConn"></div>
+  <div class="weak" id="weakConn"></div>
 </section>
 </div>
 
@@ -266,6 +326,8 @@ const LS='adjektiv-trainer-v1';
 let store={weights:{},cells:{total:0,correct:0,streak:0,best:0},phrases:{total:0,correct:0,streak:0,best:0},enabled:{cells:TYPE_ORDER.slice(),phrases:TYPE_ORDER.slice()},enabledCases:{cells:CASES.slice(),phrases:CASES.slice()},tab:'table'};
 try{const s=JSON.parse(localStorage.getItem(LS));if(s&&s.weights)store=Object.assign(store,s);}catch(e){}
 if(!store.enabledCases||!store.enabledCases.cells||!store.enabledCases.phrases)store.enabledCases={cells:CASES.slice(),phrases:CASES.slice()};
+if(!store.conn)store.conn={total:0,correct:0,streak:0,best:0};
+if(!store.connW)store.connW={};
 function save(){try{localStorage.setItem(LS,JSON.stringify(store));}catch(e){}}
 
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
@@ -275,7 +337,7 @@ const gv=g=>`--gc:var(--${g});--gt:var(--${g}-tint)`;
 const tabs=document.getElementById('tabs');
 function showTab(id){
   tabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===id)));
-  ['table','cells','phrases','fill'].forEach(t=>document.getElementById('tab-'+t).hidden=(t!==id));
+  ['table','cells','phrases','fill','conn','connTest'].forEach(t=>document.getElementById('tab-'+t).hidden=(t!==id));
   store.tab=id;save();
 }
 tabs.addEventListener('click',e=>{const b=e.target.closest('button');if(b)showTab(b.dataset.tab);});
@@ -401,11 +463,11 @@ function makeQuiz(kind){
     else{s.streak=0;store.weights[key]=(store.weights[key]||1)+3;}
     save();
     els.ans.querySelectorAll('button').forEach(b=>{b.disabled=true;if(b.dataset.e===want)b.classList.add('ok');else if(b.dataset.e===e)b.classList.add('bad');});
-    const blank=document.getElementById('blank');blank.textContent=want;blank.classList.add('done');
+    const blank=els.q.querySelector('#blank');blank.textContent=want;blank.classList.add('done');
     const why=kind==='cells'?TYPES[t].sub:cur.p.why;
     els.fb.className='feedback '+(ok?'good':'wrong');
     els.fb.innerHTML=`<div class="msg" style="${gv(g)}"><span class="verdict">${ok?'\u0412\u0435\u0440\u043D\u043E.':'\u041D\u0435\u0432\u0435\u0440\u043D\u043E.'}</span> <b>${TYPES[t].title}</b> (${why}) \u00B7 ${CASE_NAME[c]} \u00B7 ${G_NAME[g]} \u2192 <span class="mono">-${want}</span></div><button class="btn primary" id="nextBtn">\u0414\u0430\u043B\u044C\u0448\u0435 <span style="opacity:.6;font-weight:400">Enter</span></button>`;
-    document.getElementById('nextBtn').addEventListener('click',next);
+    els.fb.querySelector('#nextBtn').addEventListener('click',next);
     stats();weak();
   }
 
@@ -432,7 +494,256 @@ function makeQuiz(kind){
 const cells=makeQuiz('cells'),phrases=makeQuiz('phrases');
 cells.stats();cells.weak();cells.next();
 phrases.stats();phrases.weak();phrases.next();
-document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;cells.key(e);phrases.key(e);});
+
+// ---------- connectors: data ----------
+const KCOL={sub:'m',coord:'n',adv:'pl'};
+const KIND_ORDER=['sub','coord','adv'];
+const KIND={
+  sub:{de:'Subjunktion',name:'подчинительный союз',rule:'глагол уходит в конец придаточного'},
+  coord:{de:'Konjunktion',name:'сочинительный союз',rule:'позиция 0, порядок слов не меняется'},
+  adv:{de:'Konjunktionaladverb',name:'наречие-коннектор',rule:'занимает первую позицию, глагол сразу за ним'}
+};
+const GROUPS={
+  kausal:{de:'kausal',ru:'причина'},
+  final:{de:'final',ru:'цель'},
+  konsekutiv:{de:'konsekutiv',ru:'следствие'},
+  konzessiv:{de:'konzessiv',ru:'уступка'},
+  konditional:{de:'konditional',ru:'условие'},
+  temporal:{de:'temporal',ru:'время'},
+  adversativ:{de:'adversativ',ru:'противопоставление'},
+  kopulativ:{de:'kopulativ',ru:'добавление'},
+  alternativ:{de:'alternativ',ru:'выбор'},
+  modal:{de:'modal',ru:'способ'}
+};
+const GROUP_ORDER=Object.keys(GROUPS);
+// groups whose members are close enough in meaning that they must not be used as distractors for each other
+const NEAR={kausal:['konsekutiv','modal'],konsekutiv:['kausal'],modal:['kausal'],konzessiv:['adversativ'],adversativ:['konzessiv'],temporal:['konditional'],konditional:['temporal']};
+const CONN=[
+  {w:'weil',k:'sub',g:'kausal',ru:'потому что'},
+  {w:'denn',k:'coord',g:'kausal',ru:'ведь, так как'},
+  {w:'deshalb',k:'adv',g:'kausal',ru:'поэтому'},
+  {w:'deswegen',k:'adv',g:'kausal',ru:'поэтому'},
+  {w:'darum',k:'adv',g:'kausal',ru:'поэтому'},
+  {w:'daher',k:'adv',g:'kausal',ru:'поэтому, отсюда'},
+  {w:'damit',k:'sub',g:'final',ru:'чтобы'},
+  {w:'sodass',k:'sub',g:'konsekutiv',ru:'так что'},
+  {w:'also',k:'adv',g:'konsekutiv',ru:'итак, значит'},
+  {w:'folglich',k:'adv',g:'konsekutiv',ru:'следовательно'},
+  {w:'obwohl',k:'sub',g:'konzessiv',ru:'хотя'},
+  {w:'obgleich',k:'sub',g:'konzessiv',ru:'хотя (книжн.)'},
+  {w:'trotzdem',k:'adv',g:'konzessiv',ru:'несмотря на это'},
+  {w:'dennoch',k:'adv',g:'konzessiv',ru:'всё же, тем не менее'},
+  {w:'wenn',k:'sub',g:'konditional',ru:'если'},
+  {w:'falls',k:'sub',g:'konditional',ru:'в случае если'},
+  {w:'sonst',k:'adv',g:'konditional',ru:'иначе, а то'},
+  {w:'als',k:'sub',g:'temporal',ru:'когда (однократно, в прошлом)'},
+  {w:'bevor',k:'sub',g:'temporal',ru:'прежде чем'},
+  {w:'nachdem',k:'sub',g:'temporal',ru:'после того как'},
+  {w:'während',k:'sub',g:'temporal',ru:'в то время как, пока'},
+  {w:'sobald',k:'sub',g:'temporal',ru:'как только'},
+  {w:'bis',k:'sub',g:'temporal',ru:'до тех пор пока'},
+  {w:'danach',k:'adv',g:'temporal',ru:'после этого'},
+  {w:'dann',k:'adv',g:'temporal',ru:'затем, потом'},
+  {w:'vorher',k:'adv',g:'temporal',ru:'перед этим'},
+  {w:'aber',k:'coord',g:'adversativ',ru:'но'},
+  {w:'sondern',k:'coord',g:'adversativ',ru:'а (после отрицания)'},
+  {w:'dagegen',k:'adv',g:'adversativ',ru:'напротив, зато'},
+  {w:'und',k:'coord',g:'kopulativ',ru:'и'},
+  {w:'außerdem',k:'adv',g:'kopulativ',ru:'кроме того'},
+  {w:'zudem',k:'adv',g:'kopulativ',ru:'к тому же'},
+  {w:'oder',k:'coord',g:'alternativ',ru:'или'},
+  {w:'indem',k:'sub',g:'modal',ru:'тем что, посредством того что'},
+  {w:'dadurch',k:'adv',g:'modal',ru:'благодаря этому, тем самым'}
+];
+const CW={};CONN.forEach(c=>CW[c.w]=c);
+// pre = first part; s/v/r = subject, finite verb, rest of the second clause (rest must end with the non-finite part, no separable verbs)
+const ITEMS=[
+  {c:'weil',pre:'Ich bleibe heute zu Hause,',s:'ich',v:'bin',r:'krank',ru:'Я сегодня остаюсь дома, потому что болею.'},
+  {c:'weil',pre:'Wir nehmen ein Taxi,',s:'der Bus',v:'kommt',r:'nicht',ru:'Мы берём такси, потому что автобус не идёт.'},
+  {c:'weil',pre:'Sie lernt jeden Tag,',s:'sie',v:'will',r:'die Prüfung bestehen',ru:'Она учится каждый день, потому что хочет сдать экзамен.'},
+  {c:'denn',pre:'Ich bleibe heute zu Hause,',s:'ich',v:'bin',r:'krank',ru:'Я сегодня остаюсь дома, ведь я болею.'},
+  {c:'denn',pre:'Er trägt eine Jacke,',s:'es',v:'ist',r:'kalt',ru:'Он надел куртку, ведь холодно.'},
+  {c:'deshalb',pre:'Ich bin krank.',s:'ich',v:'bleibe',r:'heute zu Hause',ru:'Я болею. Поэтому я сегодня остаюсь дома.'},
+  {c:'deshalb',pre:'Es ist kalt.',s:'er',v:'trägt',r:'eine Jacke',ru:'Холодно. Поэтому он надел куртку.'},
+  {c:'deswegen',pre:'Der Bus kommt nicht.',s:'wir',v:'nehmen',r:'ein Taxi',ru:'Автобус не идёт. Поэтому мы берём такси.'},
+  {c:'darum',pre:'Sie will die Prüfung bestehen.',s:'sie',v:'lernt',r:'jeden Tag',ru:'Она хочет сдать экзамен. Поэтому она учится каждый день.'},
+  {c:'daher',pre:'Er hat kein Geld.',s:'er',v:'kann',r:'nicht in den Urlaub fahren',ru:'У него нет денег. Поэтому он не может поехать в отпуск.'},
+  {c:'damit',pre:'Ich lerne Deutsch,',s:'ich',v:'kann',r:'in Berlin arbeiten',ru:'Я учу немецкий, чтобы работать в Берлине.'},
+  {c:'damit',pre:'Sprich bitte lauter,',s:'alle',v:'können',r:'dich verstehen',ru:'Говори, пожалуйста, громче, чтобы все тебя понимали.'},
+  {c:'damit',pre:'Sie stellt den Wecker,',s:'sie',v:'verschläft',r:'nicht',ru:'Она ставит будильник, чтобы не проспать.'},
+  {c:'sodass',pre:'Es hat stark geregnet,',s:'die Straßen',v:'sind',r:'überflutet',ru:'Шёл сильный дождь, так что улицы затоплены.'},
+  {c:'sodass',pre:'Er sprach sehr leise,',s:'niemand',v:'konnte',r:'ihn verstehen',ru:'Он говорил очень тихо, так что никто не мог его понять.'},
+  {c:'also',pre:'Es hat stark geregnet.',s:'die Straßen',v:'sind',r:'überflutet',ru:'Шёл сильный дождь. Значит, улицы затоплены.'},
+  {c:'also',pre:'Der Laden ist geschlossen.',s:'wir',v:'müssen',r:'morgen wiederkommen',ru:'Магазин закрыт. Значит, нам придётся прийти завтра.'},
+  {c:'folglich',pre:'Er hat nicht gelernt.',s:'er',v:'hat',r:'die Prüfung nicht bestanden',ru:'Он не учился. Следовательно, он не сдал экзамен.'},
+  {c:'obwohl',pre:'Wir gehen spazieren,',s:'es',v:'regnet',r:'stark',ru:'Мы идём гулять, хотя идёт сильный дождь.'},
+  {c:'obwohl',pre:'Er ist müde,',s:'er',v:'hat',r:'lange geschlafen',ru:'Он устал, хотя долго спал.'},
+  {c:'obwohl',pre:'Sie kauft das Kleid,',s:'es',v:'ist',r:'sehr teuer',ru:'Она покупает платье, хотя оно очень дорогое.'},
+  {c:'obgleich',pre:'Er kam zur Arbeit,',s:'er',v:'war',r:'krank',ru:'Он пришёл на работу, хотя был болен.'},
+  {c:'trotzdem',pre:'Es regnet stark.',s:'wir',v:'gehen',r:'spazieren',ru:'Идёт сильный дождь. Несмотря на это, мы идём гулять.'},
+  {c:'trotzdem',pre:'Das Kleid ist sehr teuer.',s:'sie',v:'kauft',r:'es',ru:'Платье очень дорогое. Тем не менее она его покупает.'},
+  {c:'dennoch',pre:'Er hat lange geschlafen.',s:'er',v:'ist',r:'müde',ru:'Он долго спал. Тем не менее он устал.'},
+  {c:'wenn',pre:'Wir bleiben zu Hause,',s:'es',v:'regnet',r:'morgen',ru:'Мы останемся дома, если завтра будет дождь.'},
+  {c:'wenn',pre:'Ich helfe dir,',s:'du',v:'hast',r:'Probleme',ru:'Я помогу тебе, если у тебя будут проблемы.'},
+  {c:'falls',pre:'Ruf mich an,',s:'du',v:'brauchst',r:'Hilfe',ru:'Позвони мне, если вдруг понадобится помощь.'},
+  {c:'sonst',pre:'Beeil dich,',s:'du',v:'verpasst',r:'den Bus',ru:'Поторопись, иначе ты опоздаешь на автобус.'},
+  {c:'sonst',pre:'Zieh eine Jacke an,',s:'du',v:'erkältest',r:'dich',ru:'Надень куртку, а то простудишься.'},
+  {c:'als',pre:'Ich war zehn Jahre alt,',s:'wir',v:'zogen',r:'nach Berlin',ru:'Мне было десять лет, когда мы переехали в Берлин.'},
+  {c:'als',pre:'Es regnete,',s:'wir',v:'erreichten',r:'München',ru:'Шёл дождь, когда мы добрались до Мюнхена.'},
+  {c:'bevor',pre:'Ich frühstücke,',s:'ich',v:'gehe',r:'zur Arbeit',ru:'Я завтракаю, прежде чем идти на работу.'},
+  {c:'bevor',pre:'Wasch dir die Hände,',s:'du',v:'isst',r:'etwas',ru:'Помой руки, прежде чем что-то есть.'},
+  {c:'nachdem',pre:'Wir gingen spazieren,',s:'wir',v:'hatten',r:'gegessen',ru:'Мы пошли гулять после того, как поели.'},
+  {c:'nachdem',pre:'Sie rief mich an,',s:'sie',v:'war',r:'angekommen',ru:'Она позвонила мне после того, как приехала.'},
+  {c:'während',pre:'Ich höre Musik,',s:'ich',v:'koche',r:'das Abendessen',ru:'Я слушаю музыку, пока готовлю ужин.'},
+  {c:'während',pre:'Er liest die Zeitung,',s:'sie',v:'trinkt',r:'Kaffee',ru:'Он читает газету, в то время как она пьёт кофе.'},
+  {c:'sobald',pre:'Ich rufe dich an,',s:'ich',v:'bin',r:'zu Hause',ru:'Я позвоню тебе, как только буду дома.'},
+  {c:'bis',pre:'Wir warten hier,',s:'der Regen',v:'ist',r:'vorbei',ru:'Мы ждём здесь, пока дождь не пройдёт.'},
+  {c:'danach',pre:'Ich frühstücke.',s:'ich',v:'gehe',r:'zur Arbeit',ru:'Я завтракаю. После этого я иду на работу.'},
+  {c:'danach',pre:'Wir aßen zu Mittag.',s:'wir',v:'gingen',r:'spazieren',ru:'Мы пообедали. После этого мы пошли гулять.'},
+  {c:'dann',pre:'Zuerst lese ich die Aufgabe.',s:'ich',v:'schreibe',r:'die Antwort',ru:'Сначала я читаю задание. Затем я пишу ответ.'},
+  {c:'vorher',pre:'Wir gehen ins Kino.',s:'wir',v:'essen',r:'noch etwas',ru:'Мы идём в кино. Перед этим мы ещё поедим.'},
+  {c:'aber',pre:'Ich möchte kommen,',s:'ich',v:'habe',r:'keine Zeit',ru:'Я хотел бы прийти, но у меня нет времени.'},
+  {c:'aber',pre:'Das Hotel war schön,',s:'das Essen',v:'war',r:'schlecht',ru:'Отель был хорош, но еда была плохой.'},
+  {c:'sondern',pre:'Ich trinke keinen Kaffee,',s:'ich',v:'trinke',r:'Tee',ru:'Я пью не кофе, а чай.'},
+  {c:'sondern',pre:'Er kommt nicht heute,',s:'er',v:'kommt',r:'morgen',ru:'Он придёт не сегодня, а завтра.'},
+  {c:'dagegen',pre:'Im Norden regnet es oft.',s:'die Sonne',v:'scheint',r:'im Süden fast immer',ru:'На севере часто идёт дождь. На юге же почти всегда светит солнце.'},
+  {c:'dagegen',pre:'Mein Bruder isst gern Fleisch.',s:'meine Schwester',v:'ist',r:'Vegetarierin',ru:'Мой брат любит мясо. Моя сестра же вегетарианка.'},
+  {c:'und',pre:'Ich koche das Essen,',s:'du',v:'deckst',r:'den Tisch',ru:'Я готовлю еду, и ты накрываешь на стол.'},
+  {c:'außerdem',pre:'Die Wohnung ist groß.',s:'sie',v:'hat',r:'einen Balkon',ru:'Квартира большая. Кроме того, у неё есть балкон.'},
+  {c:'außerdem',pre:'Er spricht Englisch.',s:'er',v:'lernt',r:'gerade Spanisch',ru:'Он говорит по-английски. Кроме того, он сейчас учит испанский.'},
+  {c:'zudem',pre:'Das Auto ist alt.',s:'es',v:'verbraucht',r:'viel Benzin',ru:'Машина старая. К тому же она расходует много бензина.'},
+  {c:'oder',pre:'Wir gehen ins Kino,',s:'wir',v:'bleiben',r:'zu Hause',ru:'Мы пойдём в кино, или мы останемся дома.'},
+  {c:'oder',pre:'Du kannst anrufen,',s:'du',v:'schreibst',r:'mir eine Nachricht',ru:'Ты можешь позвонить, или ты напишешь мне сообщение.'},
+  {c:'indem',pre:'Ich lerne neue Wörter,',s:'ich',v:'benutze',r:'Karteikarten',ru:'Я учу новые слова, используя карточки.'},
+  {c:'indem',pre:'Man spart Energie,',s:'man',v:'nutzt',r:'LED-Lampen',ru:'Экономят энергию, используя LED-лампы.'},
+  {c:'dadurch',pre:'Ich benutze Karteikarten.',s:'ich',v:'lerne',r:'neue Wörter schneller',ru:'Я использую карточки. Благодаря этому я быстрее учу новые слова.'}
+];
+ITEMS.forEach((it,i)=>it.id=i);
+const MODES={order:'Порядок слов',fill:'Подставить коннектор',group:'Группа по смыслу'};
+const MODE_ORDER=['order','fill','group'];
+if(!store.connModes||!store.connModes.length)store.connModes=MODE_ORDER.slice();
+if(!store.connGroups||!store.connGroups.length)store.connGroups=GROUP_ORDER.slice();
+
+const ucf=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const endsSent=pre=>/[.!?]$/.test(pre);
+const connWord=(it,w)=>endsSent(it.pre)?ucf(w):w;
+const clauseOrder=(k,it)=>k==='sub'?`${it.s} ${it.r} ${it.v}`:k==='coord'?`${it.s} ${it.v} ${it.r}`:`${it.v} ${it.s} ${it.r}`;
+function clauseHtml(k,it){const v=`<b class="v">${it.v}</b>`;return k==='sub'?`${it.s} ${it.r} ${v}`:k==='coord'?`${it.s} ${v} ${it.r}`:`${v} ${it.s} ${it.r}`;}
+const fullSent=it=>{const c=CW[it.c];return `${it.pre} ${connWord(it,c.w)} ${clauseOrder(c.k,it)}.`;};
+const fullHtml=it=>{const c=CW[it.c];return `${it.pre} <b>${connWord(it,c.w)}</b> ${clauseHtml(c.k,it)}.`;};
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+
+// ---------- connectors: reference table ----------
+(function buildConnRef(){
+  let h='<table class="conn"><thead><tr><th class="grp">Группа</th>';
+  KIND_ORDER.forEach(k=>{h+=`<th style="${gv(KCOL[k])}">${KIND[k].de}<small>${KIND[k].name} · ${KIND[k].rule}</small></th>`;});
+  h+='</tr></thead><tbody>';
+  GROUP_ORDER.forEach(g=>{
+    h+=`<tr><th class="grp">${GROUPS[g].de}<small>${GROUPS[g].ru}</small></th>`;
+    KIND_ORDER.forEach(k=>{
+      const ws=CONN.filter(c=>c.g===g&&c.k===k);
+      if(!ws.length){h+='<td class="none">—</td>';return;}
+      const ex=ITEMS.find(it=>it.c===ws[0].w);
+      h+=`<td style="${gv(KCOL[k])}"><div class="cw-list">${ws.map(c=>`<span class="cw" title="${c.ru}">${c.w}</span>`).join('')}</div>${ex?`<div class="ex">${fullHtml(ex)}</div>`:''}</td>`;
+    });
+    h+='</tr>';
+  });
+  document.getElementById('connTable').innerHTML=h+'</tbody></table>';
+})();
+
+// ---------- connectors: quiz ----------
+function makeConnQuiz(){
+  const $=id=>document.getElementById(id);
+  const els={stats:$('statsConn'),opts:$('optsConn'),q:$('qConn'),ans:$('ansConn'),fb:$('fbConn'),weak:$('weakConn'),reset:$('resetConn')};
+  let cur=null,answered=false,lastId=null,opts=[];
+  const wkey=(m,w)=>m+'|'+w;
+
+  els.opts.innerHTML=
+    '<div class="optrow"><span>Режим:</span>'+MODE_ORDER.map(m=>`<label><input type="checkbox" data-group="mode" value="${m}" ${store.connModes.includes(m)?'checked':''}>${MODES[m]}</label>`).join('')+'</div>'+
+    '<div class="optrow"><span>Группы:</span>'+GROUP_ORDER.map(g=>`<label><input type="checkbox" data-group="grp" value="${g}" ${store.connGroups.includes(g)?'checked':''}>${GROUPS[g].de}</label>`).join('')+'</div>';
+  els.opts.addEventListener('change',e=>{
+    const modes=[...els.opts.querySelectorAll('input[data-group="mode"]:checked')].map(i=>i.value);
+    const grps=[...els.opts.querySelectorAll('input[data-group="grp"]:checked')].map(i=>i.value);
+    if(!modes.length||!grps.length){if(e.target)e.target.checked=true;return;}
+    store.connModes=modes;store.connGroups=grps;save();next();
+  });
+
+  function pick(){
+    const mode=rnd(store.connModes);
+    const active=ITEMS.filter(it=>store.connGroups.includes(CW[it.c].g));
+    let pool=active.filter(it=>it.id!==lastId);if(!pool.length)pool=active;
+    const w=pool.map(it=>store.connW[wkey(mode,it.c)]||1);
+    let r=Math.random()*w.reduce((a,b)=>a+b,0),it=pool[pool.length-1];
+    for(let i=0;i<pool.length;i++){r-=w[i];if(r<=0){it=pool[i];break;}}
+    return {mode,it,c:CW[it.c]};
+  }
+
+  function render(){
+    answered=false;els.fb.className='feedback';els.fb.innerHTML='';
+    const {mode,it,c}=cur,col=gv(KCOL[c.k]);
+    const chip=`<div class="meta"><span class="chip case">${MODES[mode]}</span></div>`;
+    if(mode==='order'){
+      opts=shuffle(KIND_ORDER.map(k=>({k,text:clauseOrder(k,it),ok:k===c.k})));
+      els.q.innerHTML=`${chip}<div class="prompt sent" style="${col}">${it.pre} <span class="cw">${connWord(it,c.w)}</span> <span class="blank" id="blank">____</span>.</div><div class="trans">${it.ru}</div>`;
+      els.ans.className='answers list';
+    }else if(mode==='fill'){
+      const near=NEAR[c.g]||[];
+      const cand=CONN.filter(x=>x.w!==c.w&&x.g!==c.g&&!near.includes(x.g));
+      const d=shuffle(cand.filter(x=>x.k===c.k)).slice(0,2).concat(shuffle(cand.filter(x=>x.k!==c.k)).slice(0,2));
+      const rest=shuffle(cand.filter(x=>!d.includes(x)));while(d.length<4&&rest.length)d.push(rest.pop());
+      opts=shuffle([c].concat(d)).map(x=>({w:x.w,text:x.w,ok:x.w===c.w}));
+      els.q.innerHTML=`${chip}<div class="prompt sent" style="${col}">${it.pre} <span class="blank" id="blank">____</span> ${clauseOrder(c.k,it)}.</div><div class="trans">${it.ru}</div>`;
+      els.ans.className='answers words';
+    }else{
+      const near=NEAR[c.g]||[];
+      const others=shuffle(GROUP_ORDER.filter(g=>g!==c.g&&!near.includes(g))).slice(0,3);
+      opts=shuffle([c.g].concat(others)).map(g=>({g,text:`${GROUPS[g].de} <small>· ${GROUPS[g].ru}</small>`,ok:g===c.g}));
+      els.q.innerHTML=`${chip}<div class="prompt sent" style="${col}"><span class="cw">${c.w}</span></div><div class="trans">${fullSent(it)}</div>`;
+      els.ans.className='answers groups';
+    }
+    els.ans.innerHTML=opts.map((o,i)=>`<button data-i="${i}"><span class="k">${i+1}</span>${o.text}</button>`).join('');
+  }
+
+  function answer(i){
+    if(answered||!cur)return;const o=opts[i];if(!o)return;answered=true;
+    const {mode,it,c}=cur,ok=!!o.ok,key=wkey(mode,c.w),col=gv(KCOL[c.k]);
+    const s=store.conn;s.total++;
+    if(ok){s.correct++;s.streak++;s.best=Math.max(s.best,s.streak);store.connW[key]=Math.max(1,(store.connW[key]||1)-1);}
+    else{s.streak=0;store.connW[key]=(store.connW[key]||1)+3;}
+    save();
+    els.ans.querySelectorAll('button').forEach(b=>{b.disabled=true;const j=+b.dataset.i;if(opts[j].ok)b.classList.add('ok');else if(j===i)b.classList.add('bad');});
+    const blank=els.q.querySelector('#blank');
+    if(blank){blank.textContent=mode==='order'?clauseOrder(c.k,it):connWord(it,c.w);blank.classList.add('done');}
+    const K=KIND[c.k],G=GROUPS[c.g];
+    els.fb.className='feedback '+(ok?'good':'wrong');
+    els.fb.innerHTML=`<div class="msg" style="${col}"><span class="verdict">${ok?'Верно.':'Неверно.'}</span> <span class="mono">${c.w}</span> — ${c.ru} · <b>${G.de}</b> (${G.ru}) · <b>${K.name}</b>: ${K.rule}.<span class="sent">${fullHtml(it)}</span></div><button class="btn primary" id="nextBtn">Дальше <span style="opacity:.6;font-weight:400">Enter</span></button>`;
+    els.fb.querySelector('#nextBtn').addEventListener('click',next);
+    stats();weak();
+  }
+
+  function next(){cur=pick();lastId=cur.it.id;render();}
+
+  function stats(){
+    const s=store.conn,acc=s.total?Math.round(100*s.correct/s.total):0;
+    els.stats.innerHTML=`<span>Ответов <b>${s.total}</b></span><span>Точность <b>${acc}%</b></span><span>Серия <b>${s.streak}</b></span><span>Лучшая <b>${s.best}</b></span>`;
+  }
+  function weak(){
+    const list=Object.keys(store.connW).map(k=>({k,w:store.connW[k]})).filter(x=>x.w>1&&CW[x.k.split('|')[1]]).sort((a,b)=>b.w-a.w).slice(0,6);
+    els.weak.innerHTML='<h3>Слабые места</h3>'+(list.length?'<ul>'+list.map(x=>{const [m,w]=x.k.split('|'),c=CW[w];return `<li style="${gv(KCOL[c.k])}"><span>${MODES[m]} · ${GROUPS[c.g].de}</span><span class="mono">${w}</span></li>`;}).join('')+'</ul>':'<div class="empty">Пока пусто. Ошибки будут попадаться сюда, и такие коннекторы станут выпадать чаще.</div>');
+  }
+
+  els.ans.addEventListener('click',e=>{const b=e.target.closest('button');if(b)answer(+b.dataset.i);});
+  els.reset.addEventListener('click',()=>{store.conn={total:0,correct:0,streak:0,best:0};if(confirm('Сбросить и веса «слабых мест» тоже?'))store.connW={};save();stats();weak();next();});
+
+  return {next,stats,weak,key:e=>{
+    if($('tab-connTest').hidden)return;
+    if(/^[1-5]$/.test(e.key)){const i=+e.key-1;if(i<opts.length){answer(i);e.preventDefault();}}
+    else if((e.key==='Enter'||e.key===' ')&&answered){next();e.preventDefault();}
+  }};
+}
+const conn=makeConnQuiz();
+conn.stats();conn.weak();conn.next();
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;cells.key(e);phrases.key(e);conn.key(e);});
 showTab(store.tab||'table');
 })();
 </script>
