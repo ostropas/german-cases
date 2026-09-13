@@ -136,6 +136,7 @@ table.conn td.none{color:var(--muted);text-align:center}
 .ex{color:var(--muted);font-size:12.5px;line-height:1.45;margin-top:6px}
 .ex b{color:var(--ink);font-weight:600}
 .ex b.v{color:var(--gc)}
+.ex .ru{display:block;margin-top:2px;font-style:italic;opacity:.85}
 .prompt.sent{font-size:23px}
 .prompt.sent .blank{min-width:4ch}
 .prompt.sent .blank.done{font-size:.8em}
@@ -148,6 +149,9 @@ table.conn td.none{color:var(--muted);text-align:center}
 .answers.words button{font-size:17px}
 .msg .sent{display:block;margin-top:4px;color:var(--ink)}
 .msg .sent b.v{color:var(--gc)}
+.answers.bs button{font-size:17px;padding:14px 8px 12px}
+.answers.bs button.long{font-size:14px}
+.why{color:var(--muted);font-size:13px;margin-top:8px}
 
 @media (max-width:560px){
   .prompt{font-size:23px}
@@ -179,6 +183,7 @@ table.conn td.none{color:var(--muted);text-align:center}
   <button role="tab" data-tab="fill">&#x417;&#x430;&#x43F;&#x43E;&#x43B;&#x43D;&#x438;&#x442;&#x44C; &#x442;&#x430;&#x431;&#x43B;&#x438;&#x446;&#x443;</button>
   <button role="tab" data-tab="conn">Коннекторы</button>
   <button role="tab" data-tab="connTest">Тест по коннекторам</button>
+  <button role="tab" data-tab="bs">Грамматика B1</button>
 </nav>
 
 <!-- ============ TABLE ============ -->
@@ -262,6 +267,21 @@ table.conn td.none{color:var(--muted);text-align:center}
   <div class="feedback" id="fbConn"></div>
   <div class="weak" id="weakConn"></div>
 </section>
+
+<!-- ============ SPRACHBAUSTEINE ============ -->
+<section id="tab-bs" class="panel" hidden>
+  <div class="toolbar">
+    <div class="stats" id="statsBs"></div>
+    <span class="grow"></span>
+    <button class="btn small" id="resetBs">Сбросить статистику</button>
+  </div>
+  <p class="hint" style="margin:0 0 10px">Формат Sprachbausteine (telc B1): предложение с пропуском и три варианта. Все варианты похожи, различие только грамматическое, поэтому по смыслу угадать нельзя.</p>
+  <div class="opts" id="optsBs"></div>
+  <div class="q" id="qBs"></div>
+  <div class="answers" id="ansBs"></div>
+  <div class="feedback" id="fbBs"></div>
+  <div class="weak" id="weakBs"></div>
+</section>
 </div>
 
 <script>
@@ -328,6 +348,8 @@ try{const s=JSON.parse(localStorage.getItem(LS));if(s&&s.weights)store=Object.as
 if(!store.enabledCases||!store.enabledCases.cells||!store.enabledCases.phrases)store.enabledCases={cells:CASES.slice(),phrases:CASES.slice()};
 if(!store.conn)store.conn={total:0,correct:0,streak:0,best:0};
 if(!store.connW)store.connW={};
+if(!store.bs)store.bs={total:0,correct:0,streak:0,best:0};
+if(!store.bsW)store.bsW={};
 function save(){try{localStorage.setItem(LS,JSON.stringify(store));}catch(e){}}
 
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
@@ -337,7 +359,7 @@ const gv=g=>`--gc:var(--${g});--gt:var(--${g}-tint)`;
 const tabs=document.getElementById('tabs');
 function showTab(id){
   tabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===id)));
-  ['table','cells','phrases','fill','conn','connTest'].forEach(t=>document.getElementById('tab-'+t).hidden=(t!==id));
+  ['table','cells','phrases','fill','conn','connTest','bs'].forEach(t=>document.getElementById('tab-'+t).hidden=(t!==id));
   store.tab=id;save();
 }
 tabs.addEventListener('click',e=>{const b=e.target.closest('button');if(b)showTab(b.dataset.tab);});
@@ -644,7 +666,7 @@ const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(M
       const ws=CONN.filter(c=>c.g===g&&c.k===k);
       if(!ws.length){h+='<td class="none">—</td>';return;}
       const ex=ITEMS.find(it=>it.c===ws[0].w);
-      h+=`<td style="${gv(KCOL[k])}"><div class="cw-list">${ws.map(c=>`<span class="cw" title="${c.ru}">${c.w}</span>`).join('')}</div>${ex?`<div class="ex">${fullHtml(ex)}</div>`:''}</td>`;
+      h+=`<td style="${gv(KCOL[k])}"><div class="cw-list">${ws.map(c=>`<span class="cw" title="${c.ru}">${c.w}</span>`).join('')}</div>${ex?`<div class="ex">${fullHtml(ex)}<span class="ru">${ex.ru}</span></div>`:''}</td>`;
     });
     h+='</tr>';
   });
@@ -743,7 +765,230 @@ function makeConnQuiz(){
 }
 const conn=makeConnQuiz();
 conn.stats();conn.weak();conn.next();
-document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;cells.key(e);phrases.key(e);conn.key(e);});
+
+// ---------- Sprachbausteine (B1 grammar) ----------
+const BS_TOPICS={
+  prepVerb:{name:'Управление глаголов',sub:'Verben mit Präposition'},
+  reflexiv:{name:'Возвратные местоимения',sub:'sich, uns, mir/mich'},
+  genitiv:{name:'Genitiv',sub:'des, der, wegen, trotz, während'},
+  perfektAux:{name:'Perfekt: haben или sein',sub:'Hilfsverb'},
+  partizip:{name:'Partizip II',sub:'формы причастия'},
+  komparativ:{name:'Сравнение',sub:'Komparativ, als / wie, je … desto'},
+  modalPerfekt:{name:'Модальные в прошедшем',sub:'musste / hat … müssen / gemusst'},
+  prepZeit:{name:'Предлоги времени',sub:'am, im, um, seit, vor, ab, in'},
+  indef:{name:'Неопределённые местоимения',sub:'jeder, alle, man, jemand, nichts'}
+};
+const BS_TOPIC_ORDER=Object.keys(BS_TOPICS);
+// s: sentence with ___ ; o: options ; a: index of correct ; ru: translation ; why: short rule
+const BS=[
+  // prepVerb
+  {t:'prepVerb',s:'Ich erinnere mich gern ___ meine Schulzeit.',o:['an','über','auf'],a:0,ru:'Я с удовольствием вспоминаю школьные годы.',why:'sich erinnern an + Akk.'},
+  {t:'prepVerb',s:'Wir warten schon eine Stunde ___ den Bus.',o:['für','auf','an'],a:1,ru:'Мы уже час ждём автобус.',why:'warten auf + Akk.'},
+  {t:'prepVerb',s:'Sie interessiert sich sehr ___ Geschichte.',o:['für','an','über'],a:0,ru:'Она очень интересуется историей.',why:'sich interessieren für + Akk.'},
+  {t:'prepVerb',s:'Ich freue mich ___ deinen Besuch nächste Woche.',o:['über','auf','an'],a:1,ru:'Я жду с радостью твоего визита на следующей неделе.',why:'sich freuen auf — радоваться будущему; über — тому, что уже есть'},
+  {t:'prepVerb',s:'Er hat sich ___ das Geschenk sehr gefreut.',o:['auf','über','für'],a:1,ru:'Он очень обрадовался подарку.',why:'sich freuen über — радоваться тому, что уже произошло'},
+  {t:'prepVerb',s:'Denkst du noch oft ___ deine alten Freunde?',o:['an','über','von'],a:0,ru:'Ты ещё часто думаешь о старых друзьях?',why:'denken an + Akk.'},
+  {t:'prepVerb',s:'Wir haben lange ___ das Problem gesprochen.',o:['für','über','an'],a:1,ru:'Мы долго говорили об этой проблеме.',why:'sprechen über + Akk.'},
+  {t:'prepVerb',s:'Sie kümmert sich ___ ihre kranke Mutter.',o:['für','um','an'],a:1,ru:'Она заботится о больной матери.',why:'sich kümmern um + Akk.'},
+  {t:'prepVerb',s:'Ich habe ihn ___ dem Weg gefragt.',o:['nach','über','um'],a:0,ru:'Я спросил у него дорогу.',why:'fragen nach + Dat.'},
+  {t:'prepVerb',s:'Das hängt ___ dem Wetter ab.',o:['an','von','mit'],a:1,ru:'Это зависит от погоды.',why:'abhängen von + Dat.'},
+  {t:'prepVerb',s:'Er ärgert sich ___ seinen Nachbarn.',o:['über','auf','an'],a:0,ru:'Он злится на своего соседа.',why:'sich ärgern über + Akk.'},
+  {t:'prepVerb',s:'Ich bedanke mich ___ Ihre Hilfe.',o:['über','für','um'],a:1,ru:'Благодарю вас за помощь.',why:'sich bedanken für + Akk.'},
+  {t:'prepVerb',s:'Sie hat Angst ___ Spinnen.',o:['von','vor','über'],a:1,ru:'Она боится пауков.',why:'Angst haben vor + Dat.'},
+  {t:'prepVerb',s:'Er hat ___ der Prüfung teilgenommen.',o:['an','bei','in'],a:0,ru:'Он участвовал в экзамене.',why:'teilnehmen an + Dat.'},
+  {t:'prepVerb',s:'Ich bitte dich ___ einen Gefallen.',o:['für','um','an'],a:1,ru:'Прошу тебя об услуге.',why:'bitten um + Akk.'},
+  {t:'prepVerb',s:'Sie träumt ___ einer Reise nach Japan.',o:['über','von','an'],a:1,ru:'Она мечтает о поездке в Японию.',why:'träumen von + Dat.'},
+  // reflexiv
+  {t:'reflexiv',s:'Wir haben ___ seit Jahren nicht mehr gesehen.',o:['sie','uns','sich'],a:1,ru:'Мы не виделись годами.',why:'взаимное значение «друг друга»; при wir → uns'},
+  {t:'reflexiv',s:'Kannst du ___ noch an mich erinnern?',o:['dir','dich','sich'],a:1,ru:'Ты ещё помнишь меня?',why:'sich erinnern — возвратное местоимение в Akkusativ: dich'},
+  {t:'reflexiv',s:'Ich wasche ___ jeden Morgen die Haare.',o:['mich','mir','sich'],a:1,ru:'Я каждое утро мою голову.',why:'есть прямой объект (die Haare) → возвратное в Dativ: mir'},
+  {t:'reflexiv',s:'Ich wasche ___ jeden Morgen.',o:['mich','mir','sich'],a:0,ru:'Я моюсь каждое утро.',why:'другого объекта нет → Akkusativ: mich'},
+  {t:'reflexiv',s:'Die beiden lieben ___ sehr.',o:['sie','sich','ihnen'],a:1,ru:'Они очень любят друг друга.',why:'взаимно «друг друга» → sich'},
+  {t:'reflexiv',s:'Habt ihr ___ schon kennengelernt?',o:['euch','sich','ihr'],a:0,ru:'Вы уже познакомились?',why:'ihr → euch'},
+  {t:'reflexiv',s:'Ich kann ___ das nicht vorstellen.',o:['mich','mir','sich'],a:1,ru:'Я не могу себе этого представить.',why:'sich (Dat.) etwas vorstellen — представлять себе; sich (Akk.) vorstellen — представляться'},
+  {t:'reflexiv',s:'Darf ich ___ vorstellen? Mein Name ist Weber.',o:['mich','mir','sich'],a:0,ru:'Разрешите представиться? Меня зовут Вебер.',why:'sich (Akk.) vorstellen — представляться'},
+  {t:'reflexiv',s:'Er hat ___ beim Fußball verletzt.',o:['sich','ihm','ihn'],a:0,ru:'Он травмировался, играя в футбол.',why:'sich verletzen — возвратный глагол, 3-е лицо → sich'},
+  {t:'reflexiv',s:'Wir treffen ___ um acht vor dem Kino.',o:['sich','uns','euch'],a:1,ru:'Встречаемся в восемь перед кино.',why:'sich treffen, wir → uns'},
+  {t:'reflexiv',s:'Ich habe ___ den Arm gebrochen.',o:['mich','mir','sich'],a:1,ru:'Я сломал руку.',why:'часть тела как объект → Dativ: mir'},
+  {t:'reflexiv',s:'Beeil ___, sonst verpassen wir den Zug!',o:['dich','dir','sich'],a:0,ru:'Поторопись, иначе мы опоздаем на поезд!',why:'sich beeilen — Akkusativ; императив du → dich'},
+  {t:'reflexiv',s:'Sie haben ___ gestern gestritten.',o:['sie','sich','ihnen'],a:1,ru:'Они вчера поссорились.',why:'sich streiten — друг с другом → sich'},
+  {t:'reflexiv',s:'Ich putze ___ die Zähne.',o:['mich','mir','sich'],a:1,ru:'Я чищу зубы.',why:'объект die Zähne → Dativ: mir'},
+  // genitiv
+  {t:'genitiv',s:'Wir organisieren das Treffen seit Anfang ___ Jahres.',o:['des','der','dem'],a:0,ru:'Мы организуем встречу с начала года.',why:'Anfang + Genitiv; das Jahr → des Jahres'},
+  {t:'genitiv',s:'Das Auto ___ Nachbarin ist neu.',o:['der','des','dem'],a:0,ru:'Машина соседки новая.',why:'die Nachbarin → Genitiv der Nachbarin'},
+  {t:'genitiv',s:'Am Ende ___ Films weinen alle.',o:['dem','des','der'],a:1,ru:'В конце фильма все плачут.',why:'der Film → des Films'},
+  {t:'genitiv',s:'Trotz ___ schlechten Wetters gehen wir wandern.',o:['dem','des','den'],a:1,ru:'Несмотря на плохую погоду, мы идём в поход.',why:'trotz + Genitiv'},
+  {t:'genitiv',s:'Während ___ Ferien war ich in Italien.',o:['den','der','die'],a:1,ru:'Во время каникул я был в Италии.',why:'während + Genitiv; Plural → der'},
+  {t:'genitiv',s:'Wegen ___ Staus kam er zu spät.',o:['dem','des','der'],a:1,ru:'Из-за пробки он опоздал.',why:'wegen + Genitiv; der Stau → des Staus'},
+  {t:'genitiv',s:'Die Meinung ___ Kinder ist uns wichtig.',o:['die','den','der'],a:2,ru:'Мнение детей нам важно.',why:'Genitiv Plural → der'},
+  {t:'genitiv',s:'Das ist das Haus ___ Bruders.',o:['meines','meinem','meinen'],a:0,ru:'Это дом моего брата.',why:'mein Bruder → meines Bruders'},
+  {t:'genitiv',s:'Die Farbe ___ Autos gefällt mir nicht.',o:['dem','des','das'],a:1,ru:'Цвет машины мне не нравится.',why:'das Auto → des Autos'},
+  {t:'genitiv',s:'Innerhalb ___ Woche bekommen Sie eine Antwort.',o:['einer','eine','einem'],a:0,ru:'В течение недели вы получите ответ.',why:'innerhalb + Genitiv; die Woche → einer Woche'},
+  {t:'genitiv',s:'Die Eltern ___ Schülerin sind gekommen.',o:['der','des','die'],a:0,ru:'Родители ученицы пришли.',why:'die Schülerin → der Schülerin'},
+  {t:'genitiv',s:'Der Name ___ Hotels war „Seeblick“.',o:['der','des','dem'],a:1,ru:'Название отеля было «Зеблик».',why:'das Hotel → des Hotels'},
+  // perfektAux
+  {t:'perfektAux',s:'Viele Freunde ___ inzwischen umgezogen.',o:['haben','sind','wurden'],a:1,ru:'Многие друзья за это время переехали.',why:'umziehen — смена места → sein'},
+  {t:'perfektAux',s:'Wir ___ gestern lange geschlafen.',o:['haben','sind','waren'],a:0,ru:'Мы вчера долго спали.',why:'schlafen — нет движения или смены состояния → haben'},
+  {t:'perfektAux',s:'Er ___ um sieben aufgestanden.',o:['hat','ist','war'],a:1,ru:'Он встал в семь.',why:'aufstehen — смена состояния → sein'},
+  {t:'perfektAux',s:'Sie ___ zwei Jahre in Berlin gewohnt.',o:['hat','ist','wurde'],a:0,ru:'Она два года жила в Берлине.',why:'wohnen → haben'},
+  {t:'perfektAux',s:'Wann ___ du nach Hause gekommen?',o:['hast','bist','warst'],a:1,ru:'Когда ты пришёл домой?',why:'kommen — движение → sein'},
+  {t:'perfektAux',s:'Ich ___ den ganzen Tag gearbeitet.',o:['habe','bin','war'],a:0,ru:'Я работал весь день.',why:'arbeiten → haben'},
+  {t:'perfektAux',s:'Das Kind ___ schnell eingeschlafen.',o:['hat','ist','wird'],a:1,ru:'Ребёнок быстро заснул.',why:'einschlafen — переход в новое состояние → sein'},
+  {t:'perfektAux',s:'Sie ___ mit dem Zug gefahren.',o:['hat','ist','war'],a:1,ru:'Она ехала на поезде.',why:'fahren без объекта → sein'},
+  {t:'perfektAux',s:'Er ___ das Auto in die Garage gefahren.',o:['hat','ist','war'],a:0,ru:'Он загнал машину в гараж.',why:'fahren с объектом (das Auto) → haben'},
+  {t:'perfektAux',s:'Was ___ denn passiert?',o:['hat','ist','war'],a:1,ru:'Что же случилось?',why:'passieren, geschehen → sein'},
+  {t:'perfektAux',s:'Wir ___ uns lange nicht gesehen.',o:['haben','sind','waren'],a:0,ru:'Мы давно не виделись.',why:'sehen → haben'},
+  {t:'perfektAux',s:'Der Zug ___ pünktlich abgefahren.',o:['hat','ist','wurde'],a:1,ru:'Поезд отправился вовремя.',why:'abfahren — движение → sein'},
+  {t:'perfektAux',s:'Sie ___ in Hamburg geblieben.',o:['hat','ist','war'],a:1,ru:'Она осталась в Гамбурге.',why:'bleiben → sein (исключение, запомнить)'},
+  {t:'perfektAux',s:'Es ___ die ganze Nacht geregnet.',o:['hat','ist','war'],a:0,ru:'Всю ночь шёл дождь.',why:'regnen → haben'},
+  {t:'perfektAux',s:'Ich ___ gestern zu Hause geblieben.',o:['habe','bin','war'],a:1,ru:'Я вчера остался дома.',why:'bleiben → sein'},
+  {t:'perfektAux',s:'Sie ___ ihm bei der Arbeit geholfen.',o:['hat','ist','war'],a:0,ru:'Она помогла ему в работе.',why:'helfen → haben'},
+  // partizip
+  {t:'partizip',s:'Viele Mädchen haben inzwischen ___.',o:['geheiratet','verheiratet','heiratet'],a:0,ru:'Многие девушки за это время вышли замуж.',why:'Perfekt: haben + Partizip II; verheiratet — прилагательное «замужем»'},
+  {t:'partizip',s:'Meine Schwester ist seit drei Jahren ___.',o:['geheiratet','verheiratet','heiratet'],a:1,ru:'Моя сестра три года замужем.',why:'sein + verheiratet — состояние, а не действие'},
+  {t:'partizip',s:'Hast du die Hausaufgaben schon ___?',o:['gemacht','machte','machen'],a:0,ru:'Ты уже сделал домашнее задание?',why:'слабый глагол: ge- + -t'},
+  {t:'partizip',s:'Wir haben gestern einen Film ___.',o:['gesehen','geseht','sah'],a:0,ru:'Мы вчера смотрели фильм.',why:'сильный глагол: sehen → gesehen'},
+  {t:'partizip',s:'Ich habe das Buch schon ___.',o:['gelesen','gelest','las'],a:0,ru:'Я уже прочитал книгу.',why:'lesen → gelesen'},
+  {t:'partizip',s:'Wir sind spät ___.',o:['angekommen','angekommt','ankommen'],a:0,ru:'Мы прибыли поздно.',why:'отделяемая приставка: an-ge-kommen'},
+  {t:'partizip',s:'Hast du den Termin ___?',o:['vergessen','vergesst','gevergessen'],a:0,ru:'Ты забыл о встрече?',why:'неотделяемая приставка ver- → без ge-'},
+  {t:'partizip',s:'Er hat lange ___.',o:['telefoniert','getelefoniert','telefonieren'],a:0,ru:'Он долго говорил по телефону.',why:'глаголы на -ieren → без ge-'},
+  {t:'partizip',s:'Sie hat mir alles ___.',o:['erklärt','geerklärt','erklärte'],a:0,ru:'Она мне всё объяснила.',why:'приставка er- → без ge-'},
+  {t:'partizip',s:'Wann bist du ___?',o:['abgefahren','abfahren','abgefahrt'],a:0,ru:'Когда ты уехал?',why:'ab-ge-fahren; fahren — сильный глагол'},
+  {t:'partizip',s:'Ich habe ihn gestern ___.',o:['getroffen','getreffen','treffte'],a:0,ru:'Я встретил его вчера.',why:'treffen → getroffen (смена гласного)'},
+  {t:'partizip',s:'Das Kind hat gut ___.',o:['geschlafen','geschlaft','schlief'],a:0,ru:'Ребёнок хорошо спал.',why:'schlafen → geschlafen'},
+  {t:'partizip',s:'Er hat mir nicht ___.',o:['geglaubt','glaubte','geglauben'],a:0,ru:'Он мне не поверил.',why:'слабый глагол: geglaubt'},
+  {t:'partizip',s:'Wir haben viel ___.',o:['gelacht','gelachen','lachten'],a:0,ru:'Мы много смеялись.',why:'lachen — слабый глагол: gelacht'},
+  {t:'partizip',s:'Sie hat das Fenster ___.',o:['geöffnet','geöffnen','öffnete'],a:0,ru:'Она открыла окно.',why:'öffnen → geöffnet (основа на -n → -et)'},
+  {t:'partizip',s:'Hast du schon ___?',o:['gegessen','geesst','aß'],a:0,ru:'Ты уже поел?',why:'essen → gegessen'},
+  // komparativ
+  {t:'komparativ',s:'Es hat ___ gedauert, als wir dachten.',o:['lang','lange','länger'],a:2,ru:'Это заняло больше времени, чем мы думали.',why:'als сигнализирует сравнение → Komparativ'},
+  {t:'komparativ',s:'Er ist genauso alt ___ ich.',o:['als','wie','dann'],a:1,ru:'Он такого же возраста, как я.',why:'genauso … wie — равенство'},
+  {t:'komparativ',s:'Sie läuft schneller ___ ihr Bruder.',o:['wie','als','dann'],a:1,ru:'Она бегает быстрее, чем её брат.',why:'Komparativ + als'},
+  {t:'komparativ',s:'Kommt bitte so früh ___ möglich!',o:['als','wie','wenn'],a:1,ru:'Приходите как можно раньше!',why:'so … wie möglich'},
+  {t:'komparativ',s:'Dieses Hotel ist ___ als das andere.',o:['teuer','teurer','am teuersten'],a:1,ru:'Этот отель дороже другого.',why:'als → Komparativ; teuer → teurer (выпадает e)'},
+  {t:'komparativ',s:'Das ist der ___ Tag des Jahres.',o:['kürzer','kürzeste','kurz'],a:1,ru:'Это самый короткий день года.',why:'Superlativ с артиклем: der kürzeste'},
+  {t:'komparativ',s:'Heute ist es ___ als gestern.',o:['kalt','kälter','am kältesten'],a:1,ru:'Сегодня холоднее, чем вчера.',why:'als → Komparativ с умлаутом: kälter'},
+  {t:'komparativ',s:'Ich trinke lieber Tee ___ Kaffee.',o:['wie','als','oder'],a:1,ru:'Я предпочитаю чай кофе.',why:'lieber … als'},
+  {t:'komparativ',s:'Je mehr ich lerne, ___ besser verstehe ich.',o:['desto','so','als'],a:0,ru:'Чем больше я учу, тем лучше понимаю.',why:'je … desto (umso)'},
+  {t:'komparativ',s:'Berlin ist die ___ Stadt Deutschlands.',o:['größer','größte','groß'],a:1,ru:'Берлин — самый большой город Германии.',why:'Superlativ: die größte'},
+  {t:'komparativ',s:'Er spricht ___ Deutsch als ich.',o:['gut','besser','am besten'],a:1,ru:'Он говорит по-немецки лучше меня.',why:'gut → besser → am besten'},
+  {t:'komparativ',s:'Sie ist nicht so groß ___ ihre Mutter.',o:['als','wie','dann'],a:1,ru:'Она не такая высокая, как её мать.',why:'(nicht) so … wie'},
+  {t:'komparativ',s:'Das ist ___ Idee, die ich je gehört habe.',o:['die beste','besser','am besten'],a:0,ru:'Это лучшая идея, которую я когда-либо слышал.',why:'Superlativ перед существительным с артиклем'},
+  {t:'komparativ',s:'Mein Bruder ist zwei Jahre ___ als ich.',o:['alt','älter','am ältesten'],a:1,ru:'Мой брат на два года старше меня.',why:'als → Komparativ: älter'},
+  // modalPerfekt
+  {t:'modalPerfekt',s:'Wir haben sehr viel telefonieren ___.',o:['müssen','gemusst','mussten'],a:0,ru:'Нам пришлось очень много звонить.',why:'модальный глагол + инфинитив в Perfekt → инфинитив (Ersatzinfinitiv), не gemusst'},
+  {t:'modalPerfekt',s:'Als Kind ___ ich immer früh ins Bett gehen.',o:['muss','musste','gemusst'],a:1,ru:'В детстве мне всегда нужно было рано ложиться.',why:'для модальных обычно Präteritum: musste'},
+  {t:'modalPerfekt',s:'Er hat gestern nicht kommen ___.',o:['können','gekonnt','konnte'],a:0,ru:'Он вчера не смог прийти.',why:'haben + Infinitiv + können'},
+  {t:'modalPerfekt',s:'Ich habe das leider nicht ___.',o:['können','gekonnt','konnte'],a:1,ru:'К сожалению, я этого не смог.',why:'без второго глагола → настоящее Partizip II: gekonnt'},
+  {t:'modalPerfekt',s:'Sie ___ früher sehr gut Klavier spielen.',o:['kann','konnte','gekonnt'],a:1,ru:'Раньше она очень хорошо играла на пианино.',why:'Präteritum: konnte'},
+  {t:'modalPerfekt',s:'Die Kinder ___ gestern länger aufbleiben.',o:['durften','dürfen','gedurft'],a:0,ru:'Детям вчера разрешили не ложиться дольше.',why:'Präteritum: durften'},
+  {t:'modalPerfekt',s:'Ich habe nicht mitkommen ___.',o:['wollen','gewollt','wollte'],a:0,ru:'Я не хотел идти с ними.',why:'haben + Infinitiv + wollen'},
+  {t:'modalPerfekt',s:'Das hast du nicht ___!',o:['müssen','gemusst','musstest'],a:1,ru:'Тебе не нужно было этого делать!',why:'инфинитива нет → gemusst'},
+  {t:'modalPerfekt',s:'Sie ___ gestern zum Arzt gehen.',o:['muss','musste','gemusst'],a:1,ru:'Ей вчера нужно было идти к врачу.',why:'gestern → прошедшее; Präteritum musste'},
+  {t:'modalPerfekt',s:'Er hat das Auto nicht reparieren ___.',o:['können','gekonnt','konnte'],a:0,ru:'Он не смог починить машину.',why:'Ersatzinfinitiv: reparieren können'},
+  {t:'modalPerfekt',s:'Ihr ___ letzte Woche nicht schwimmen gehen, das Bad war zu.',o:['konnte','konntet','gekonnt'],a:1,ru:'Вы на прошлой неделе не могли пойти плавать, бассейн был закрыт.',why:'Präteritum, ihr → konntet'},
+  {t:'modalPerfekt',s:'Wir ___ den Text bis Montag lesen.',o:['sollten','sollen','gesollt'],a:0,ru:'Мы должны были прочитать текст до понедельника.',why:'Präteritum: sollten'},
+  // prepZeit
+  {t:'prepZeit',s:'Wir treffen uns ___ 25. April.',o:['im','am','um'],a:1,ru:'Мы встречаемся 25 апреля.',why:'дата и день → am'},
+  {t:'prepZeit',s:'Wir treffen uns ___ 17 Uhr.',o:['am','um','im'],a:1,ru:'Мы встречаемся в 17 часов.',why:'время по часам → um'},
+  {t:'prepZeit',s:'___ Sommer fahren wir ans Meer.',o:['Am','Im','Um'],a:1,ru:'Летом мы едем на море.',why:'время года и месяц → im'},
+  {t:'prepZeit',s:'___ Montag habe ich frei.',o:['Am','Im','Um'],a:0,ru:'В понедельник у меня выходной.',why:'день недели → am'},
+  {t:'prepZeit',s:'___ Wochenende schlafe ich lange.',o:['Am','Im','Um'],a:0,ru:'В выходные я сплю долго.',why:'am Wochenende'},
+  {t:'prepZeit',s:'Ich bin ___ 1990 geboren.',o:['im','in','—'],a:2,ru:'Я родился в 1990 году.',why:'год без предлога (или im Jahr 1990)'},
+  {t:'prepZeit',s:'___ Abend sehen wir fern.',o:['Am','Im','Um'],a:0,ru:'Вечером мы смотрим телевизор.',why:'части дня → am (кроме in der Nacht)'},
+  {t:'prepZeit',s:'___ der Nacht war es sehr kalt.',o:['Am','In','Um'],a:1,ru:'Ночью было очень холодно.',why:'in der Nacht — исключение'},
+  {t:'prepZeit',s:'Er ist ___ Mai nach Berlin gezogen.',o:['am','im','um'],a:1,ru:'Он переехал в Берлин в мае.',why:'месяц → im'},
+  {t:'prepZeit',s:'Ich wohne ___ drei Jahren in Köln.',o:['vor','seit','ab'],a:1,ru:'Я живу в Кёльне три года.',why:'seit + Dat. — с какого-то момента до сих пор'},
+  {t:'prepZeit',s:'___ zwei Jahren war ich in Spanien.',o:['Vor','Seit','Ab'],a:0,ru:'Два года назад я был в Испании.',why:'vor + Dat. — «тому назад»'},
+  {t:'prepZeit',s:'Der Kurs dauert ___ Ende Juni.',o:['bis','seit','ab'],a:0,ru:'Курс длится до конца июня.',why:'bis — до'},
+  {t:'prepZeit',s:'___ nächster Woche arbeite ich Teilzeit.',o:['Seit','Ab','Vor'],a:1,ru:'Со следующей недели я работаю неполный день.',why:'ab — начиная с (в будущем)'},
+  {t:'prepZeit',s:'___ zwei Wochen bin ich wieder da.',o:['In','Vor','Seit'],a:0,ru:'Через две недели я вернусь.',why:'in + Dat. — «через» (в будущем)'},
+  {t:'prepZeit',s:'___ der Arbeit gehe ich einkaufen.',o:['Nach','Seit','Bis'],a:0,ru:'После работы я иду за покупками.',why:'nach + Dat. — после'},
+  {t:'prepZeit',s:'Der Film beginnt ___ halb neun.',o:['am','um','im'],a:1,ru:'Фильм начинается в полдевятого.',why:'время по часам → um'},
+  // indef
+  {t:'indef',s:'Das Lokal kennt ___ noch von früher.',o:['jede','jeder','alle'],a:1,ru:'Это кафе каждый помнит ещё с прежних времён.',why:'глагол kennt в ед. ч. → jeder; alle требует kennen'},
+  {t:'indef',s:'___ Schüler kennen das Lokal.',o:['Jeder','Alle','Jede'],a:1,ru:'Все ученики знают это кафе.',why:'глагол во мн. ч. (kennen) → alle'},
+  {t:'indef',s:'___ Schülerin hat ein Buch bekommen.',o:['Jeder','Jede','Alle'],a:1,ru:'Каждая ученица получила книгу.',why:'ж. р. → jede'},
+  {t:'indef',s:'Ich habe ___ gesehen, das Haus war leer.',o:['niemanden','jemanden','keinen'],a:0,ru:'Я никого не видел, дом был пуст.',why:'отрицание для лиц → niemand(en)'},
+  {t:'indef',s:'Kann mir ___ helfen?',o:['jemand','niemand','etwas'],a:0,ru:'Кто-нибудь может мне помочь?',why:'«кто-нибудь» → jemand'},
+  {t:'indef',s:'Ich habe ___ gehört, war das die Tür?',o:['etwas','nichts','jemand'],a:0,ru:'Я что-то слышал, это была дверь?',why:'«что-то» → etwas'},
+  {t:'indef',s:'Wie sagt ___ das auf Deutsch?',o:['man','jemand','alle'],a:0,ru:'Как это сказать по-немецки?',why:'обобщённое «люди/принято» → man'},
+  {t:'indef',s:'Ich habe ___ Zeit heute, tut mir leid.',o:['keine','nichts','niemand'],a:0,ru:'У меня сегодня нет времени, извини.',why:'отрицание существительного → kein/keine'},
+  {t:'indef',s:'Er hat ___ gesagt und ist gegangen.',o:['nichts','kein','niemand'],a:0,ru:'Он ничего не сказал и ушёл.',why:'«ничего» → nichts'},
+  {t:'indef',s:'___ Menschen mögen Regen.',o:['Manche','Jeder','Man'],a:0,ru:'Некоторые люди любят дождь.',why:'manche + Plural'},
+  {t:'indef',s:'Ich möchte ___ trinken.',o:['etwas','jemand','alle'],a:0,ru:'Я хотел бы что-нибудь выпить.',why:'«что-нибудь» → etwas'},
+  {t:'indef',s:'Das weiß doch ___!',o:['jeder','jede','alle'],a:0,ru:'Это же каждый знает!',why:'weiß в ед. ч. → jeder'},
+  {t:'indef',s:'___ von uns hat einen Schlüssel.',o:['Jeder','Alle','Manche'],a:0,ru:'У каждого из нас есть ключ.',why:'hat в ед. ч. → jeder'},
+  {t:'indef',s:'Hast du noch ___ Fragen?',o:['irgendwelche','irgendein','etwas'],a:0,ru:'У тебя есть ещё какие-нибудь вопросы?',why:'Plural → irgendwelche'},
+  {t:'indef',s:'Ist ___ zu Hause? Es ist so still.',o:['jemand','etwas','man'],a:0,ru:'Кто-нибудь дома? Так тихо.',why:'о лице → jemand'}
+];
+BS.forEach((it,i)=>it.id=i);
+if(!store.bsTopics||!store.bsTopics.length)store.bsTopics=BS_TOPIC_ORDER.slice();
+
+function makeBsQuiz(){
+  const $=id=>document.getElementById(id);
+  const els={stats:$('statsBs'),opts:$('optsBs'),q:$('qBs'),ans:$('ansBs'),fb:$('fbBs'),weak:$('weakBs'),reset:$('resetBs')};
+  let cur=null,answered=false,lastId=null,opts=[];
+  const col=gv('m');
+
+  els.opts.innerHTML='<div class="optrow"><span>Темы:</span>'+BS_TOPIC_ORDER.map(t=>`<label title="${BS_TOPICS[t].sub}"><input type="checkbox" data-group="topic" value="${t}" ${store.bsTopics.includes(t)?'checked':''}>${BS_TOPICS[t].name}</label>`).join('')+'</div>';
+  els.opts.addEventListener('change',e=>{
+    const ts=[...els.opts.querySelectorAll('input:checked')].map(i=>i.value);
+    if(!ts.length){if(e.target)e.target.checked=true;return;}
+    store.bsTopics=ts;save();next();
+  });
+
+  function pick(){
+    const active=BS.filter(it=>store.bsTopics.includes(it.t));
+    let pool=active.filter(it=>it.id!==lastId);if(!pool.length)pool=active;
+    const w=pool.map(it=>store.bsW[it.id]||1);
+    let r=Math.random()*w.reduce((a,b)=>a+b,0),it=pool[pool.length-1];
+    for(let i=0;i<pool.length;i++){r-=w[i];if(r<=0){it=pool[i];break;}}
+    return it;
+  }
+  function render(){
+    answered=false;els.fb.className='feedback';els.fb.innerHTML='';
+    const it=cur;
+    opts=shuffle(it.o.map((text,i)=>({text,ok:i===it.a})));
+    els.q.innerHTML=`<div class="meta"><span class="chip case">${BS_TOPICS[it.t].name}</span></div><div class="prompt sent" style="${col}">${it.s.replace('___','<span class="blank" id="blank">____</span>')}</div><div class="trans">${it.ru}</div>`;
+    const long=opts.some(o=>o.text.length>9);
+    els.ans.className='answers bs';
+    els.ans.style.gridTemplateColumns=`repeat(${opts.length},1fr)`;
+    els.ans.innerHTML=opts.map((o,i)=>`<button data-i="${i}" class="${long?'long':''}"><span class="k">${i+1}</span>${o.text}</button>`).join('');
+  }
+  function answer(i){
+    if(answered||!cur)return;const o=opts[i];if(!o)return;answered=true;
+    const it=cur,ok=!!o.ok,s=store.bs;s.total++;
+    if(ok){s.correct++;s.streak++;s.best=Math.max(s.best,s.streak);store.bsW[it.id]=Math.max(1,(store.bsW[it.id]||1)-1);}
+    else{s.streak=0;store.bsW[it.id]=(store.bsW[it.id]||1)+3;}
+    save();
+    els.ans.querySelectorAll('button').forEach(b=>{b.disabled=true;const j=+b.dataset.i;if(opts[j].ok)b.classList.add('ok');else if(j===i)b.classList.add('bad');});
+    const blank=els.q.querySelector('#blank');if(blank){blank.textContent=it.o[it.a];blank.classList.add('done');}
+    els.fb.className='feedback '+(ok?'good':'wrong');
+    els.fb.innerHTML=`<div class="msg" style="${col}"><span class="verdict">${ok?'Верно.':'Неверно.'}</span> <span class="mono">${it.o[it.a]}</span> — ${it.why}.<span class="sent">${it.s.replace('___',`<b class="v">${it.o[it.a]}</b>`)}</span></div><button class="btn primary" id="nextBtn">Дальше <span style="opacity:.6;font-weight:400">Enter</span></button>`;
+    els.fb.querySelector('#nextBtn').addEventListener('click',next);
+    stats();weak();
+  }
+  function next(){cur=pick();lastId=cur.id;render();}
+  function stats(){
+    const s=store.bs,acc=s.total?Math.round(100*s.correct/s.total):0;
+    els.stats.innerHTML=`<span>Ответов <b>${s.total}</b></span><span>Точность <b>${acc}%</b></span><span>Серия <b>${s.streak}</b></span><span>Лучшая <b>${s.best}</b></span>`;
+  }
+  function weak(){
+    const list=Object.keys(store.bsW).map(k=>({it:BS[+k],w:store.bsW[k]})).filter(x=>x.it&&x.w>1).sort((a,b)=>b.w-a.w).slice(0,6);
+    els.weak.innerHTML='<h3>Слабые места</h3>'+(list.length?'<ul>'+list.map(x=>`<li style="${col}"><span>${BS_TOPICS[x.it.t].name}: ${x.it.s.replace('___','…')}</span><span class="mono">${x.it.o[x.it.a]}</span></li>`).join('')+'</ul>':'<div class="empty">Пока пусто. Ошибки будут попадаться сюда, и такие задания станут выпадать чаще.</div>');
+  }
+  els.ans.addEventListener('click',e=>{const b=e.target.closest('button');if(b)answer(+b.dataset.i);});
+  els.reset.addEventListener('click',()=>{store.bs={total:0,correct:0,streak:0,best:0};if(confirm('Сбросить и веса «слабых мест» тоже?'))store.bsW={};save();stats();weak();next();});
+  return {next,stats,weak,key:e=>{
+    if($('tab-bs').hidden)return;
+    if(/^[1-5]$/.test(e.key)){const i=+e.key-1;if(i<opts.length){answer(i);e.preventDefault();}}
+    else if((e.key==='Enter'||e.key===' ')&&answered){next();e.preventDefault();}
+  }};
+}
+const bs=makeBsQuiz();
+bs.stats();bs.weak();bs.next();
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;cells.key(e);phrases.key(e);conn.key(e);bs.key(e);});
 showTab(store.tab||'table');
 })();
 </script>
