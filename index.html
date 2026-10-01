@@ -428,8 +428,10 @@ function makeQuiz(kind){
   // options
   els.opts.innerHTML=
     '<div class="optrow"><span>\u0421\u043A\u043B\u043E\u043D\u0435\u043D\u0438\u044F:</span>'+TYPE_ORDER.map(t=>`<label><input type="checkbox" data-group="type" value="${t}" ${store.enabled[kind].includes(t)?'checked':''}>${TYPES[t].short}</label>`).join('')+'</div>'+
-    '<div class="optrow"><span>\u041F\u0430\u0434\u0435\u0436\u0438:</span>'+CASES.map(c=>`<label><input type="checkbox" data-group="case" value="${c}" ${store.enabledCases[kind].includes(c)?'checked':''}>${CASE_NAME[c]}</label>`).join('')+'</div>';
+    '<div class="optrow"><span>\u041F\u0430\u0434\u0435\u0436\u0438:</span>'+CASES.map(c=>`<label><input type="checkbox" data-group="case" value="${c}" ${store.enabledCases[kind].includes(c)?'checked':''}>${CASE_NAME[c]}</label>`).join('')+'</div>'+
+    (kind==='cells'?`<div class="optrow"><span>Подсказка:</span><label><input type="checkbox" data-group="hint" ${store.hideType?'checked':''}>Скрыть тип склонения</label></div>`:'');
   els.opts.addEventListener('change',e=>{
+    if(e.target&&e.target.dataset.group==='hint'){store.hideType=e.target.checked;save();if(!answered)render();return;}
     const types=[...els.opts.querySelectorAll('input[data-group="type"]:checked')].map(i=>i.value);
     const cases=[...els.opts.querySelectorAll('input[data-group="case"]:checked')].map(i=>i.value);
     if(!types.length||!cases.length){if(e.target)e.target.checked=true;return;}
@@ -467,7 +469,7 @@ function makeQuiz(kind){
     answered=false;els.fb.className='feedback';els.fb.innerHTML='';
     const {t,c,g}=cur;
     if(kind==='cells'){
-      els.q.innerHTML=`<div class="meta"><span class="chip case">${CASE_NAME[c]}</span><span class="chip gen" style="${gv(g)}">${G_ART[g]} \u00B7 ${G_NAME[g]}</span><span class="chip">${TYPES[t].title}</span></div>
+      els.q.innerHTML=`<div class="meta"><span class="chip case">${CASE_NAME[c]}</span><span class="chip gen" style="${gv(g)}">${G_ART[g]} \u00B7 ${G_NAME[g]}</span>${store.hideType?'':`<span class="chip">${TYPES[t].title}</span>`}</div>
         <div class="prompt" style="${gv(g)}">${TYPES[t].sub}<span style="color:var(--muted)"> \u2192 </span><span class="adj">-<span class="blank" id="blank">__</span></span></div>`;
     }else{
       const p=phraseFor(cur);cur.p=p;
