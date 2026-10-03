@@ -152,6 +152,11 @@ table.conn td.none{color:var(--muted);text-align:center}
 .answers.bs button{font-size:17px;padding:14px 8px 12px}
 .answers.bs button.long{font-size:14px}
 .why{color:var(--muted);font-size:13px;margin-top:8px}
+details.ref{margin-top:20px;border-top:1px solid var(--line);padding-top:14px}
+details.ref summary{cursor:pointer;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:10px}
+table.conn td.vp{white-space:nowrap}
+table.conn td .cw{white-space:nowrap}
+table.conn tr.case th{background:var(--gt);color:var(--gc);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
 
 @media (max-width:560px){
   .prompt{font-size:23px}
@@ -184,6 +189,7 @@ table.conn td.none{color:var(--muted);text-align:center}
   <button role="tab" data-tab="conn">Коннекторы</button>
   <button role="tab" data-tab="connTest">Тест по коннекторам</button>
   <button role="tab" data-tab="bs">Грамматика B1</button>
+  <button role="tab" data-tab="vp">Глаголы с предлогами</button>
 </nav>
 
 <!-- ============ TABLE ============ -->
@@ -282,6 +288,25 @@ table.conn td.none{color:var(--muted);text-align:center}
   <div class="feedback" id="fbBs"></div>
   <div class="weak" id="weakBs"></div>
 </section>
+
+<!-- ============ VERBS WITH PREPOSITIONS ============ -->
+<section id="tab-vp" class="panel" hidden>
+  <div class="toolbar">
+    <div class="stats" id="statsVp"></div>
+    <span class="grow"></span>
+    <button class="btn small" id="resetVp">Сбросить статистику</button>
+  </div>
+  <div class="opts" id="optsVp"></div>
+  <div class="q" id="qVp"></div>
+  <div class="answers" id="ansVp"></div>
+  <div class="feedback" id="fbVp"></div>
+  <div class="weak" id="weakVp"></div>
+  <details class="ref">
+    <summary>Таблица глаголов</summary>
+    <div class="tscroll" id="vpTable"></div>
+    <div class="rules" id="vpMulti"></div>
+  </details>
+</section>
 </div>
 
 <script>
@@ -350,6 +375,8 @@ if(!store.conn)store.conn={total:0,correct:0,streak:0,best:0};
 if(!store.connW)store.connW={};
 if(!store.bs)store.bs={total:0,correct:0,streak:0,best:0};
 if(!store.bsW)store.bsW={};
+if(!store.vp)store.vp={total:0,correct:0,streak:0,best:0};
+if(!store.vpW)store.vpW={};
 function save(){try{localStorage.setItem(LS,JSON.stringify(store));}catch(e){}}
 
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
@@ -359,7 +386,7 @@ const gv=g=>`--gc:var(--${g});--gt:var(--${g}-tint)`;
 const tabs=document.getElementById('tabs');
 function showTab(id){
   tabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===id)));
-  ['table','cells','phrases','fill','conn','connTest','bs'].forEach(t=>document.getElementById('tab-'+t).hidden=(t!==id));
+  ['table','cells','phrases','fill','conn','connTest','bs','vp'].forEach(t=>document.getElementById('tab-'+t).hidden=(t!==id));
   store.tab=id;save();
 }
 tabs.addEventListener('click',e=>{const b=e.target.closest('button');if(b)showTab(b.dataset.tab);});
@@ -990,7 +1017,154 @@ function makeBsQuiz(){
 }
 const bs=makeBsQuiz();
 bs.stats();bs.weak();bs.next();
-document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;cells.key(e);phrases.key(e);conn.key(e);bs.key(e);});
+
+// ---------- verbs with prepositions ----------
+const VP_CASE={D:{de:'Dativ',col:'m'},A:{de:'Akkusativ',col:'f'}};
+// v: verb ; p: preposition ; c: case ; q: question word ; ex: example phrase ; ru: translation
+const VP=[
+  {v:'anfangen',p:'mit',c:'D',q:'womit?',ex:'mit der Übung anfangen',ru:'начинать с'},
+  {v:'aufhören',p:'mit',c:'D',q:'womit?',ex:'mit dem Rauchen aufhören',ru:'прекращать'},
+  {v:'teilnehmen',p:'an',c:'D',q:'woran?',ex:'an dem Kurs teilnehmen',ru:'участвовать в'},
+  {v:'sprechen',p:'mit',c:'D',q:'mit wem?',ex:'mit meiner Lehrerin sprechen',ru:'разговаривать с'},
+  {v:'abhängen',p:'von',c:'D',q:'wovon?',ex:'vom Wetter abhängen',ru:'зависеть от'},
+  {v:'träumen',p:'von',c:'D',q:'wovon?',ex:'von einer Reise träumen',ru:'мечтать о'},
+  {v:'sich erholen',p:'von',c:'D',q:'wovon?',ex:'von der Arbeit erholen',ru:'отдыхать после'},
+  {v:'sich bedanken',p:'bei',c:'D',q:'bei wem?',ex:'bei Ihnen bedanken',ru:'благодарить кого'},
+  {v:'rechnen',p:'mit',c:'D',q:'womit?',ex:'mit Problemen rechnen',ru:'ожидать, рассчитывать на'},
+  {v:'bestehen',p:'aus',c:'D',q:'woraus?',ex:'aus zehn Lektionen bestehen',ru:'состоять из'},
+  {v:'sich bewerben',p:'um',c:'A',q:'worum?',ex:'um eine Stelle bewerben',ru:'подавать заявление на'},
+  {v:'sich vorbereiten',p:'auf',c:'A',q:'worauf?',ex:'auf die Prüfung vorbereiten',ru:'готовиться к'},
+  {v:'sich freuen',p:'auf',c:'A',q:'worauf?',ex:'auf den Urlaub freuen',ru:'радоваться предстоящему'},
+  {v:'sich freuen',p:'über',c:'A',q:'worüber?',ex:'über das Geschenk freuen',ru:'радоваться чему-то (уже случившемуся)'},
+  {v:'sich beschweren',p:'über',c:'A',q:'worüber?',ex:'über den Service beschweren',ru:'жаловаться на'},
+  {v:'warten',p:'auf',c:'A',q:'worauf?',ex:'auf den Bus warten',ru:'ждать'},
+  {v:'denken',p:'an',c:'A',q:'woran?',ex:'an die Prüfung denken',ru:'думать о'},
+  {v:'sprechen',p:'über',c:'A',q:'worüber?',ex:'über das Problem sprechen',ru:'говорить о'},
+  {v:'sich interessieren',p:'für',c:'A',q:'wofür?',ex:'für Musik interessieren',ru:'интересоваться'},
+  {v:'sich erinnern',p:'an',c:'A',q:'woran?',ex:'an den Urlaub erinnern',ru:'вспоминать о'},
+  {v:'sich kümmern',p:'um',c:'A',q:'worum?',ex:'um die Kinder kümmern',ru:'заботиться о'},
+  {v:'sich entscheiden',p:'für',c:'A',q:'wofür?',ex:'für diese Wohnung entscheiden',ru:'выбрать'},
+  {v:'sich entscheiden',p:'gegen',c:'A',q:'wogegen?',ex:'gegen das Angebot entscheiden',ru:'отказаться от'},
+  {v:'sich konzentrieren',p:'auf',c:'A',q:'worauf?',ex:'auf die Aufgabe konzentrieren',ru:'концентрироваться на'},
+  {v:'sich bedanken',p:'für',c:'A',q:'wofür?',ex:'für Ihre Hilfe bedanken',ru:'благодарить за'}
+];
+VP.forEach((it,i)=>it.id=i);
+const VP_MODES={prep:'Предлог и падеж',fill:'Пропуск в примере',frage:'Вопрос'};
+const VP_MODE_ORDER=Object.keys(VP_MODES);
+if(!store.vpModes||!store.vpModes.length)store.vpModes=VP_MODE_ORDER.slice();
+if(!store.vpCases||!store.vpCases.length)store.vpCases=['D','A'];
+const vpPC=it=>`${it.p} + ${it.c==='D'?'Dat.':'Akk.'}`;
+const vpCol=it=>gv(VP_CASE[it.c].col);
+// example phrase with the preposition (or vom = von+dem) swapped for a blank
+const vpBlank=(it,b)=>it.ex.replace(new RegExp('^'+(it.p==='von'?'(von|vom)':it.p)+'\\b'),m=>b(m));
+const vpOther=it=>VP.filter(x=>x.v===it.v&&x.id!==it.id);
+
+(function buildVpRef(){
+  let h='<table class="conn"><thead><tr><th>Verb</th><th>Präposition</th><th>Frage</th><th>Beispiel</th><th>Перевод</th></tr></thead><tbody>';
+  ['D','A'].forEach(c=>{
+    h+=`<tr class="case" style="${gv(VP_CASE[c].col)}"><th colspan="5">${VP_CASE[c].de}</th></tr>`;
+    VP.filter(it=>it.c===c).forEach(it=>{
+      h+=`<tr style="${vpCol(it)}"><td class="vp"><b>${it.v}</b></td><td><span class="cw">${vpPC(it)}</span></td><td>${it.q}</td><td>${vpBlank(it,m=>`<b>${m}</b>`)}</td><td>${it.ru}</td></tr>`;
+    });
+  });
+  document.getElementById('vpTable').innerHTML=h+'</tbody></table>';
+  const multi=[...new Set(VP.map(it=>it.v))].filter(v=>VP.filter(x=>x.v===v).length>1);
+  document.getElementById('vpMulti').innerHTML=multi.map(v=>`<div class="rule"><h3>${v} · разные предлоги</h3>${VP.filter(x=>x.v===v).map(x=>`<div style="${vpCol(x)}"><span class="mono cw">${vpPC(x)}</span> — ${x.ru}: <i>${x.ex}</i></div>`).join('')}</div>`).join('');
+})();
+
+function makeVpQuiz(){
+  const $=id=>document.getElementById(id);
+  const els={stats:$('statsVp'),opts:$('optsVp'),q:$('qVp'),ans:$('ansVp'),fb:$('fbVp'),weak:$('weakVp'),reset:$('resetVp')};
+  let cur=null,answered=false,lastId=null,opts=[];
+  const wkey=(m,id)=>m+'|'+id;
+
+  els.opts.innerHTML=
+    '<div class="optrow"><span>Режим:</span>'+VP_MODE_ORDER.map(m=>`<label><input type="checkbox" data-group="mode" value="${m}" ${store.vpModes.includes(m)?'checked':''}>${VP_MODES[m]}</label>`).join('')+'</div>'+
+    '<div class="optrow"><span>Падеж:</span>'+['D','A'].map(c=>`<label><input type="checkbox" data-group="case" value="${c}" ${store.vpCases.includes(c)?'checked':''}>${VP_CASE[c].de}</label>`).join('')+'</div>';
+  els.opts.addEventListener('change',e=>{
+    const modes=[...els.opts.querySelectorAll('input[data-group="mode"]:checked')].map(i=>i.value);
+    const cs=[...els.opts.querySelectorAll('input[data-group="case"]:checked')].map(i=>i.value);
+    if(!modes.length||!cs.length){if(e.target)e.target.checked=true;return;}
+    store.vpModes=modes;store.vpCases=cs;save();next();
+  });
+
+  function pick(){
+    const mode=rnd(store.vpModes);
+    const active=VP.filter(it=>store.vpCases.includes(it.c));
+    let pool=active.filter(it=>it.id!==lastId);if(!pool.length)pool=active;
+    const w=pool.map(it=>store.vpW[wkey(mode,it.id)]||1);
+    let r=Math.random()*w.reduce((a,b)=>a+b,0),it=pool[pool.length-1];
+    for(let i=0;i<pool.length;i++){r-=w[i];if(r<=0){it=pool[i];break;}}
+    return {mode,it};
+  }
+  // n distinct distractors from all values of f, excluding answers valid for the same verb
+  function distract(it,f,n){
+    const bad=new Set([f(it)].concat(vpOther(it).map(f)));
+    return shuffle([...new Set(VP.map(f))].filter(x=>!bad.has(x))).slice(0,n);
+  }
+
+  function render(){
+    answered=false;els.fb.className='feedback';els.fb.innerHTML='';
+    const {mode,it}=cur,col=vpCol(it);
+    const chip=`<div class="meta"><span class="chip case">${VP_MODES[mode]}</span></div>`;
+    let right;
+    if(mode==='prep'){
+      right=vpPC(it);
+      els.q.innerHTML=`${chip}<div class="prompt sent" style="${col}">${it.v} <span class="blank" id="blank">____</span></div><div class="trans">${it.ru}</div>`;
+      // same preposition with the other case is the most useful distractor
+      const flip=`${it.p} + ${it.c==='D'?'Akk.':'Dat.'}`;
+      const d=distract(it,vpPC,3);if(!vpOther(it).some(x=>vpPC(x)===flip)&&!d.includes(flip))d[2]=flip;
+      opts=shuffle([right].concat(d));
+    }else if(mode==='fill'){
+      right=vpBlank(it,m=>m).split(' ')[0];
+      els.q.innerHTML=`${chip}<div class="prompt sent" style="${col}">${vpBlank(it,()=>'<span class="blank" id="blank">____</span>')}</div><div class="trans">${it.ru}</div>`;
+      opts=shuffle([right].concat(distract(it,x=>x.p,3)));
+    }else{
+      right=it.q;
+      els.q.innerHTML=`${chip}<div class="prompt sent" style="${col}"><span class="blank" id="blank">____</span> ${it.v}</div><div class="trans">${it.ex} · ${it.ru}</div>`;
+      opts=shuffle([right].concat(distract(it,x=>x.q,3)));
+    }
+    opts=opts.map(text=>({text,ok:text===right}));
+    els.ans.className='answers bs';
+    els.ans.style.gridTemplateColumns=`repeat(${opts.length},1fr)`;
+    els.ans.innerHTML=opts.map((o,i)=>`<button data-i="${i}" class="${opts.some(o=>o.text.length>9)?'long':''}"><span class="k">${i+1}</span>${o.text}</button>`).join('');
+  }
+
+  function answer(i){
+    if(answered||!cur)return;const o=opts[i];if(!o)return;answered=true;
+    const {mode,it}=cur,ok=!!o.ok,key=wkey(mode,it.id),col=vpCol(it),s=store.vp;s.total++;
+    if(ok){s.correct++;s.streak++;s.best=Math.max(s.best,s.streak);store.vpW[key]=Math.max(1,(store.vpW[key]||1)-1);}
+    else{s.streak=0;store.vpW[key]=(store.vpW[key]||1)+3;}
+    save();
+    els.ans.querySelectorAll('button').forEach(b=>{b.disabled=true;const j=+b.dataset.i;if(opts[j].ok)b.classList.add('ok');else if(j===i)b.classList.add('bad');});
+    const blank=els.q.querySelector('#blank');if(blank){blank.textContent=opts.find(o=>o.ok).text;blank.classList.add('done');}
+    const also=vpOther(it).map(x=>`<br>Также: <span class="mono" style="${vpCol(x)}">${it.v} ${vpPC(x)}</span> — ${x.ru}`).join('');
+    els.fb.className='feedback '+(ok?'good':'wrong');
+    els.fb.innerHTML=`<div class="msg" style="${col}"><span class="verdict">${ok?'Верно.':'Неверно.'}</span> <span class="mono">${it.v} ${vpPC(it)}</span> · ${it.q} — ${it.ru}.<span class="sent">${vpBlank(it,m=>`<b class="v">${m}</b>`)}</span>${also}</div><button class="btn primary" id="nextBtn">Дальше <span style="opacity:.6;font-weight:400">Enter</span></button>`;
+    els.fb.querySelector('#nextBtn').addEventListener('click',next);
+    stats();weak();
+  }
+
+  function next(){cur=pick();lastId=cur.it.id;render();}
+  function stats(){
+    const s=store.vp,acc=s.total?Math.round(100*s.correct/s.total):0;
+    els.stats.innerHTML=`<span>Ответов <b>${s.total}</b></span><span>Точность <b>${acc}%</b></span><span>Серия <b>${s.streak}</b></span><span>Лучшая <b>${s.best}</b></span>`;
+  }
+  function weak(){
+    const list=Object.keys(store.vpW).map(k=>({m:k.split('|')[0],it:VP[+k.split('|')[1]],w:store.vpW[k]})).filter(x=>x.it&&x.w>1).sort((a,b)=>b.w-a.w).slice(0,6);
+    els.weak.innerHTML='<h3>Слабые места</h3>'+(list.length?'<ul>'+list.map(x=>`<li style="${vpCol(x.it)}"><span>${VP_MODES[x.m]} · ${x.it.v}</span><span class="mono">${x.m==='frage'?x.it.q:vpPC(x.it)}</span></li>`).join('')+'</ul>':'<div class="empty">Пока пусто. Ошибки будут попадаться сюда, и такие глаголы станут выпадать чаще.</div>');
+  }
+  els.ans.addEventListener('click',e=>{const b=e.target.closest('button');if(b)answer(+b.dataset.i);});
+  els.reset.addEventListener('click',()=>{store.vp={total:0,correct:0,streak:0,best:0};if(confirm('Сбросить и веса «слабых мест» тоже?'))store.vpW={};save();stats();weak();next();});
+  return {next,stats,weak,key:e=>{
+    if($('tab-vp').hidden)return;
+    if(/^[1-5]$/.test(e.key)){const i=+e.key-1;if(i<opts.length){answer(i);e.preventDefault();}}
+    else if((e.key==='Enter'||e.key===' ')&&answered){next();e.preventDefault();}
+  }};
+}
+const vp=makeVpQuiz();
+vp.stats();vp.weak();vp.next();
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;cells.key(e);phrases.key(e);conn.key(e);bs.key(e);vp.key(e);});
 showTab(store.tab||'table');
 })();
 </script>
