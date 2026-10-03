@@ -1025,7 +1025,7 @@ const VP=[
   {v:'anfangen',p:'mit',c:'D',q:'womit?',ex:'mit der Übung anfangen',ru:'начинать с'},
   {v:'aufhören',p:'mit',c:'D',q:'womit?',ex:'mit dem Rauchen aufhören',ru:'прекращать'},
   {v:'teilnehmen',p:'an',c:'D',q:'woran?',ex:'an dem Kurs teilnehmen',ru:'участвовать в'},
-  {v:'sprechen',p:'mit',c:'D',q:'mit wem?',ex:'mit meiner Lehrerin sprechen',ru:'разговаривать с'},
+  {v:'sprechen',p:'mit',c:'D',q:'mit wem?',ex:'mit meiner Lehrerin sprechen',ru:'разговаривать с',pr:'mit ihr'},
   {v:'abhängen',p:'von',c:'D',q:'wovon?',ex:'vom Wetter abhängen',ru:'зависеть от'},
   {v:'träumen',p:'von',c:'D',q:'wovon?',ex:'von einer Reise träumen',ru:'мечтать о'},
   {v:'sich erholen',p:'von',c:'D',q:'wovon?',ex:'von der Arbeit erholen',ru:'отдыхать после'},
@@ -1049,7 +1049,7 @@ const VP=[
   {v:'sich bedanken',p:'für',c:'A',q:'wofür?',ex:'für Ihre Hilfe bedanken',ru:'благодарить за'}
 ];
 VP.forEach((it,i)=>it.id=i);
-const VP_MODES={prep:'Предлог и падеж',fill:'Пропуск в примере',frage:'Вопрос'};
+const VP_MODES={prep:'Предлог и падеж',fill:'Пропуск в примере',frage:'Вопрос',da:'da-слово'};
 const VP_MODE_ORDER=Object.keys(VP_MODES);
 if(!store.vpModes||!store.vpModes.length)store.vpModes=VP_MODE_ORDER.slice();
 if(!store.vpCases||!store.vpCases.length)store.vpCases=['D','A'];
@@ -1058,18 +1058,23 @@ const vpCol=it=>gv(VP_CASE[it.c].col);
 // example phrase with the preposition (or vom = von+dem) swapped for a blank
 const vpBlank=(it,b)=>it.ex.replace(new RegExp('^'+(it.p==='von'?'(von|vom)':it.p)+'\\b'),m=>b(m));
 const vpOther=it=>VP.filter(x=>x.v===it.v&&x.id!==it.id);
+// da-word from the wo-question (worauf → darauf); persons take preposition + pronoun instead
+const vpDa=it=>it.pr||(it.q.startsWith('wo')?'da'+it.q.slice(2,-1):null);
+const vpThing=it=>it.ex.slice(0,it.ex.lastIndexOf(' '));
+const vpVerb=it=>it.ex.slice(it.ex.lastIndexOf(' ')+1);
+const VP_DA_RULE='da + предлог; если предлог начинается с гласной, вставляется r: dar-auf, dar-über. О людях da-слово не используется: предлог + местоимение (mit ihr, an ihn)';
 
 (function buildVpRef(){
-  let h='<table class="conn"><thead><tr><th>Verb</th><th>Präposition</th><th>Frage</th><th>Beispiel</th><th>Перевод</th></tr></thead><tbody>';
+  let h='<table class="conn"><thead><tr><th>Verb</th><th>Präposition</th><th>Frage</th><th>da-</th><th>Beispiel</th><th>Перевод</th></tr></thead><tbody>';
   ['D','A'].forEach(c=>{
-    h+=`<tr class="case" style="${gv(VP_CASE[c].col)}"><th colspan="5">${VP_CASE[c].de}</th></tr>`;
+    h+=`<tr class="case" style="${gv(VP_CASE[c].col)}"><th colspan="6">${VP_CASE[c].de}</th></tr>`;
     VP.filter(it=>it.c===c).forEach(it=>{
-      h+=`<tr style="${vpCol(it)}"><td class="vp"><b>${it.v}</b></td><td><span class="cw">${vpPC(it)}</span></td><td>${it.q}</td><td>${vpBlank(it,m=>`<b>${m}</b>`)}</td><td>${it.ru}</td></tr>`;
+      h+=`<tr style="${vpCol(it)}"><td class="vp"><b>${it.v}</b></td><td><span class="cw">${vpPC(it)}</span></td><td>${it.q}</td><td>${vpDa(it)||'—'}</td><td>${vpBlank(it,m=>`<b>${m}</b>`)}</td><td>${it.ru}</td></tr>`;
     });
   });
   document.getElementById('vpTable').innerHTML=h+'</tbody></table>';
   const multi=[...new Set(VP.map(it=>it.v))].filter(v=>VP.filter(x=>x.v===v).length>1);
-  document.getElementById('vpMulti').innerHTML=multi.map(v=>`<div class="rule"><h3>${v} · разные предлоги</h3>${VP.filter(x=>x.v===v).map(x=>`<div style="${vpCol(x)}"><span class="mono cw">${vpPC(x)}</span> — ${x.ru}: <i>${x.ex}</i></div>`).join('')}</div>`).join('');
+  document.getElementById('vpMulti').innerHTML=`<div class="rule"><h3>da-слова · damit, darauf…</h3>${VP_DA_RULE}: <span class="mono">Ich warte auf den Bus. → Ich warte darauf.</span> Ich spreche mit meiner Lehrerin. → <span class="mono">mit ihr</span>.</div>`+multi.map(v=>`<div class="rule"><h3>${v} · разные предлоги</h3>${VP.filter(x=>x.v===v).map(x=>`<div style="${vpCol(x)}"><span class="mono cw">${vpPC(x)}</span> — ${x.ru}: <i>${x.ex}</i></div>`).join('')}</div>`).join('');
 })();
 
 function makeVpQuiz(){
@@ -1090,7 +1095,7 @@ function makeVpQuiz(){
 
   function pick(){
     const mode=rnd(store.vpModes);
-    const active=VP.filter(it=>store.vpCases.includes(it.c));
+    const active=VP.filter(it=>store.vpCases.includes(it.c)&&(mode!=='da'||vpDa(it)));
     let pool=active.filter(it=>it.id!==lastId);if(!pool.length)pool=active;
     const w=pool.map(it=>store.vpW[wkey(mode,it.id)]||1);
     let r=Math.random()*w.reduce((a,b)=>a+b,0),it=pool[pool.length-1];
@@ -1119,6 +1124,11 @@ function makeVpQuiz(){
       right=vpBlank(it,m=>m).split(' ')[0];
       els.q.innerHTML=`${chip}<div class="prompt sent" style="${col}">${vpBlank(it,()=>'<span class="blank" id="blank">____</span>')}</div><div class="trans">${it.ru}</div>`;
       opts=shuffle([right].concat(distract(it,x=>x.p,3)));
+    }else if(mode==='da'){
+      right=vpDa(it);
+      els.q.innerHTML=`${chip}<div class="prompt sent" style="${col}"><span class="blank" id="blank">____</span> ${vpVerb(it)}</div><div class="trans">вместо «${vpThing(it)}» · ${it.v} — ${it.ru}</div>`;
+      const d=it.pr?shuffle(['da'+it.p,it.p+' sie',it.p+' ihm']).slice(0,3):distract(it,x=>x.q.startsWith('wo')?vpDa(x):right,3);
+      opts=shuffle([right].concat(d));
     }else{
       right=it.q;
       els.q.innerHTML=`${chip}<div class="prompt sent" style="${col}"><span class="blank" id="blank">____</span> ${it.v}</div><div class="trans">${it.ex} · ${it.ru}</div>`;
@@ -1138,9 +1148,10 @@ function makeVpQuiz(){
     save();
     els.ans.querySelectorAll('button').forEach(b=>{b.disabled=true;const j=+b.dataset.i;if(opts[j].ok)b.classList.add('ok');else if(j===i)b.classList.add('bad');});
     const blank=els.q.querySelector('#blank');if(blank){blank.textContent=opts.find(o=>o.ok).text;blank.classList.add('done');}
+    const rule=mode==='da'?`<br>${VP_DA_RULE}.`:'';
     const also=vpOther(it).map(x=>`<br>Также: <span class="mono" style="${vpCol(x)}">${it.v} ${vpPC(x)}</span> — ${x.ru}`).join('');
     els.fb.className='feedback '+(ok?'good':'wrong');
-    els.fb.innerHTML=`<div class="msg" style="${col}"><span class="verdict">${ok?'Верно.':'Неверно.'}</span> <span class="mono">${it.v} ${vpPC(it)}</span> · ${it.q} — ${it.ru}.<span class="sent">${vpBlank(it,m=>`<b class="v">${m}</b>`)}</span>${also}</div><button class="btn primary" id="nextBtn">Дальше <span style="opacity:.6;font-weight:400">Enter</span></button>`;
+    els.fb.innerHTML=`<div class="msg" style="${col}"><span class="verdict">${ok?'Верно.':'Неверно.'}</span> <span class="mono">${it.v} ${vpPC(it)}</span> · ${it.q} — ${it.ru}.<span class="sent">${vpBlank(it,m=>`<b class="v">${m}</b>`)}</span>${mode==='da'?`<span class="sent">→ <b class="v">${vpDa(it)}</b> ${vpVerb(it)}</span>`:''}${rule}${also}</div><button class="btn primary" id="nextBtn">Дальше <span style="opacity:.6;font-weight:400">Enter</span></button>`;
     els.fb.querySelector('#nextBtn').addEventListener('click',next);
     stats();weak();
   }
@@ -1152,7 +1163,7 @@ function makeVpQuiz(){
   }
   function weak(){
     const list=Object.keys(store.vpW).map(k=>({m:k.split('|')[0],it:VP[+k.split('|')[1]],w:store.vpW[k]})).filter(x=>x.it&&x.w>1).sort((a,b)=>b.w-a.w).slice(0,6);
-    els.weak.innerHTML='<h3>Слабые места</h3>'+(list.length?'<ul>'+list.map(x=>`<li style="${vpCol(x.it)}"><span>${VP_MODES[x.m]} · ${x.it.v}</span><span class="mono">${x.m==='frage'?x.it.q:vpPC(x.it)}</span></li>`).join('')+'</ul>':'<div class="empty">Пока пусто. Ошибки будут попадаться сюда, и такие глаголы станут выпадать чаще.</div>');
+    els.weak.innerHTML='<h3>Слабые места</h3>'+(list.length?'<ul>'+list.map(x=>`<li style="${vpCol(x.it)}"><span>${VP_MODES[x.m]} · ${x.it.v}</span><span class="mono">${x.m==='frage'?x.it.q:x.m==='da'?vpDa(x.it):vpPC(x.it)}</span></li>`).join('')+'</ul>':'<div class="empty">Пока пусто. Ошибки будут попадаться сюда, и такие глаголы станут выпадать чаще.</div>');
   }
   els.ans.addEventListener('click',e=>{const b=e.target.closest('button');if(b)answer(+b.dataset.i);});
   els.reset.addEventListener('click',()=>{store.vp={total:0,correct:0,streak:0,best:0};if(confirm('Сбросить и веса «слабых мест» тоже?'))store.vpW={};save();stats();weak();next();});
